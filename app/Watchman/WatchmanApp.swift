@@ -76,7 +76,7 @@ struct WatchmanApp: App {
                         }
                     }
                     result.append(NSAttributedString(
-                        string: "\(peak)%",
+                        string: " \(peak)%",
                         attributes: [.font: font, .foregroundColor: usageColor]
                     ))
                 }
@@ -102,7 +102,7 @@ struct WatchmanApp: App {
                     }
 
                     result.append(NSAttributedString(
-                        string: "\(temp)°",
+                        string: " \(temp)°",
                         attributes: [.font: font, .foregroundColor: nsTempColor(temp)]
                     ))
                 }
