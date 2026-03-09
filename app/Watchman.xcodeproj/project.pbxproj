@@ -12,6 +12,8 @@
 		9FB4C6C86527A98F887ED0EF /* WorkerMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7033D853466C8B698B2AD744 /* WorkerMetrics.swift */; };
 		BFA4563AA5D25EF4B2B72FB9 /* WorkerDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 370A65888FD7038540BE3D2D /* WorkerDetailView.swift */; };
 		F2F39E4C9D753706658A9B72 /* MetricsPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = E394DA01A25C8C15E3E20243 /* MetricsPoller.swift */; };
+		A1B2C3D4E5F60718A1B2C3D4 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C3B2A1E5F60718D4C3B2A1 /* AppSettings.swift */; };
+		B2C3D4E5F6071829B2C3D4E5 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5D4C3B2F6071829E5D4C3B2 /* SettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,6 +24,8 @@
 		E17D66EE10FFBA2F9DE82A65 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
 		E394DA01A25C8C15E3E20243 /* MetricsPoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricsPoller.swift; sourceTree = "<group>"; };
 		F65FC84A59BE74B87EB31068 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		D4C3B2A1E5F60718D4C3B2A1 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		E5D4C3B2F6071829E5D4C3B2 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -41,6 +45,7 @@
 			isa = PBXGroup;
 			children = (
 				E17D66EE10FFBA2F9DE82A65 /* MenuBarView.swift */,
+				E5D4C3B2F6071829E5D4C3B2 /* SettingsView.swift */,
 				370A65888FD7038540BE3D2D /* WorkerDetailView.swift */,
 			);
 			path = Views;
@@ -49,6 +54,7 @@
 		32B19886BB34D53D07852DF7 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				D4C3B2A1E5F60718D4C3B2A1 /* AppSettings.swift */,
 				7033D853466C8B698B2AD744 /* WorkerMetrics.swift */,
 			);
 			path = Models;
@@ -133,8 +139,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1B2C3D4E5F60718A1B2C3D4 /* AppSettings.swift in Sources */,
 				9A5E62A98856031590034191 /* MenuBarView.swift in Sources */,
 				F2F39E4C9D753706658A9B72 /* MetricsPoller.swift in Sources */,
+				B2C3D4E5F6071829B2C3D4E5 /* SettingsView.swift in Sources */,
 				0CEC294578C20AA504EC0DB6 /* WatchmanApp.swift in Sources */,
 				BFA4563AA5D25EF4B2B72FB9 /* WorkerDetailView.swift in Sources */,
 				9FB4C6C86527A98F887ED0EF /* WorkerMetrics.swift in Sources */,

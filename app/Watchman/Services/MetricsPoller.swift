@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor
 class MetricsPoller: ObservableObject {
     @Published var workers: [WorkerEntry] = []
+    @Published var lastPollTime: Date?
 
     private var timer: Timer?
     private let session: URLSession
@@ -70,6 +71,7 @@ class MetricsPoller: ObservableObject {
                     workers[index].markUnreachable()
                 }
             }
+            lastPollTime = Date()
         }
     }
 

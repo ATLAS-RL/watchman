@@ -72,19 +72,53 @@ struct WorkerEntry: Identifiable {
     let url: URL
     var metrics: WorkerMetrics?
     var state: WorkerState = .unreachable
+    var lastUpdated: Date?
 
     var displayName: String {
         metrics?.hostname ?? id
     }
 
+    /// Worker index extracted from id (e.g. "worker-0" → 0)
+    var index: Int? {
+        id.split(separator: "-").last.flatMap { Int($0) }
+    }
+
+    var staleness: String? {
+        guard let lastUpdated else { return nil }
+        let elapsed = Int(-lastUpdated.timeIntervalSinceNow)
+        if elapsed < 5 { return nil }
+        if elapsed < 60 { return "\(elapsed)s ago" }
+        return "\(elapsed / 60)m ago"
+    }
+
+    var peakUsage: Int? {
+        guard let m = metrics else { return nil }
+        var vals = [Int(m.cpu.usage_percent)]
+        if let gpu = m.gpu { vals.append(Int(gpu.usage_percent)) }
+        let ramPct = m.memory.total_mb > 0
+            ? Int(100 * m.memory.used_mb / m.memory.total_mb) : 0
+        vals.append(ramPct)
+        return vals.max()
+    }
+
+    var maxTemp: Int? {
+        guard let m = metrics else { return nil }
+        var temps: [Int] = []
+        if let t = m.temps.cpu_temp_c { temps.append(Int(t)) }
+        if let gpu = m.gpu { temps.append(Int(gpu.temp_c)) }
+        return temps.max()
+    }
+
     mutating func update(with metrics: WorkerMetrics) {
         self.metrics = metrics
         self.state = Self.evaluateState(metrics)
+        self.lastUpdated = Date()
     }
 
     mutating func markUnreachable() {
         self.metrics = nil
         self.state = .unreachable
+        // lastUpdated intentionally kept for staleness display
     }
 
     private static func evaluateState(_ m: WorkerMetrics) -> WorkerState {
@@ -97,6 +131,49 @@ struct WorkerEntry: Identifiable {
             : 0
         if ramPercent > 0.90 { return .warning }
         return .ok
+    }
+}
+
+// MARK: - Formatting Extensions
+
+private func formatBytes(mb: UInt64) -> String {
+    if mb >= 1024 {
+        return String(format: "%.1f GB", Double(mb) / 1024.0)
+    }
+    return "\(mb) MB"
+}
+
+extension WorkerMetrics.GpuMetrics {
+    var vramUsedFormatted: String { formatBytes(mb: vram_used_mb) }
+    var vramTotalFormatted: String { formatBytes(mb: vram_total_mb) }
+    var vramFraction: Double {
+        vram_total_mb > 0 ? Double(vram_used_mb) / Double(vram_total_mb) : 0
+    }
+}
+
+extension WorkerMetrics.MemoryMetrics {
+    var usedFormatted: String { formatBytes(mb: used_mb) }
+    var totalFormatted: String { formatBytes(mb: total_mb) }
+    var fraction: Double {
+        total_mb > 0 ? Double(used_mb) / Double(total_mb) : 0
+    }
+}
+
+extension WorkerMetrics.DiskMetrics {
+    var usedFormatted: String {
+        if used_gb >= 1024 {
+            return String(format: "%.1f TB", Double(used_gb) / 1024.0)
+        }
+        return "\(used_gb) GB"
+    }
+    var totalFormatted: String {
+        if total_gb >= 1024 {
+            return String(format: "%.1f TB", Double(total_gb) / 1024.0)
+        }
+        return "\(total_gb) GB"
+    }
+    var fraction: Double {
+        total_gb > 0 ? Double(used_gb) / Double(total_gb) : 0
     }
 }
 
