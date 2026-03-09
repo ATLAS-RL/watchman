@@ -1,24 +1,24 @@
 import SwiftUI
 
-// MARK: - Cobalt Next Dark Accent Colors
+// MARK: - Dracula Accent Colors
 
-private let cobaltGreen = Color(red: 0x99/255.0, green: 0xC7/255.0, blue: 0x95/255.0)   // #99C795
-private let cobaltYellow = Color(red: 0xFA/255.0, green: 0xC8/255.0, blue: 0x63/255.0)  // #FAC863
-private let cobaltRed = Color(red: 0xE6/255.0, green: 0x57/255.0, blue: 0x7A/255.0)     // #E6577A
-private let cobaltOrange = Color(red: 0xD6/255.0, green: 0x83/255.0, blue: 0x8C/255.0)  // #D6838C
+private let draculaGreen = Color(red: 0x50/255.0, green: 0xFA/255.0, blue: 0x7B/255.0)   // #50FA7B
+private let draculaYellow = Color(red: 0xF1/255.0, green: 0xFA/255.0, blue: 0x8C/255.0)  // #F1FA8C
+private let draculaRed = Color(red: 0xFF/255.0, green: 0x55/255.0, blue: 0x55/255.0)     // #FF5555
+private let draculaOrange = Color(red: 0xFF/255.0, green: 0xB8/255.0, blue: 0x6C/255.0)  // #FFB86C
 
 // MARK: - Color Helpers
 
 private func usageColor(_ percent: Int) -> Color {
-    if percent >= 85 { return cobaltRed }
-    if percent >= 70 { return cobaltYellow }
-    return cobaltGreen
+    if percent >= 85 { return draculaRed }
+    if percent >= 70 { return draculaYellow }
+    return draculaGreen
 }
 
 private func tempColor(_ temp: Int) -> Color {
-    if temp >= 85 { return cobaltRed }
-    if temp >= 75 { return cobaltOrange }
-    if temp >= 60 { return cobaltYellow }
+    if temp >= 85 { return draculaRed }
+    if temp >= 75 { return draculaOrange }
+    if temp >= 60 { return draculaYellow }
     return Theme.textSecondary
 }
 

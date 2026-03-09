@@ -57,10 +57,10 @@ enum WorkerState {
 
     var systemColor: SwiftUI.Color {
         switch self {
-        case .ok: return .green
-        case .warning: return .yellow
-        case .critical: return .red
-        case .unreachable: return .gray
+        case .ok: return Color(red: 0x50/255.0, green: 0xFA/255.0, blue: 0x7B/255.0)         // #50FA7B
+        case .warning: return Color(red: 0xF1/255.0, green: 0xFA/255.0, blue: 0x8C/255.0)    // #F1FA8C
+        case .critical: return Color(red: 0xFF/255.0, green: 0x55/255.0, blue: 0x55/255.0)    // #FF5555
+        case .unreachable: return Color(red: 0x62/255.0, green: 0x72/255.0, blue: 0xA4/255.0) // #6272A4
         }
     }
 }

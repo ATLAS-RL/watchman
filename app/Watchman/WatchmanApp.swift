@@ -112,16 +112,16 @@ struct WatchmanApp: App {
     }
 
     private func nsUsageColor(_ percent: Int) -> NSColor {
-        if percent >= 85 { return .systemRed }
-        if percent >= 70 { return .systemYellow }
-        return .systemGreen
+        if percent >= 85 { return NSColor(red: 0xFF/255.0, green: 0x55/255.0, blue: 0x55/255.0, alpha: 1) } // #FF5555
+        if percent >= 70 { return NSColor(red: 0xF1/255.0, green: 0xFA/255.0, blue: 0x8C/255.0, alpha: 1) } // #F1FA8C
+        return NSColor(red: 0x50/255.0, green: 0xFA/255.0, blue: 0x7B/255.0, alpha: 1) // #50FA7B
     }
 
     private func nsTempColor(_ temp: Int) -> NSColor {
-        if temp >= 85 { return .systemRed }
-        if temp >= 75 { return .systemOrange }
-        if temp >= 60 { return .systemYellow }
-        return .labelColor
+        if temp >= 85 { return NSColor(red: 0xFF/255.0, green: 0x55/255.0, blue: 0x55/255.0, alpha: 1) } // #FF5555
+        if temp >= 75 { return NSColor(red: 0xFF/255.0, green: 0xB8/255.0, blue: 0x6C/255.0, alpha: 1) } // #FFB86C
+        if temp >= 60 { return NSColor(red: 0xF1/255.0, green: 0xFA/255.0, blue: 0x8C/255.0, alpha: 1) } // #F1FA8C
+        return NSColor(red: 0x62/255.0, green: 0x72/255.0, blue: 0xA4/255.0, alpha: 1) // #6272A4
     }
 }
 
