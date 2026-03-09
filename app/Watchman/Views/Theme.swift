@@ -1,12 +1,12 @@
 import SwiftUI
 
 enum Theme {
-    // Dracula palette
-    static let panelBg = Color(red: 0x28/255.0, green: 0x2A/255.0, blue: 0x36/255.0)       // #282A36
-    static let cardBg = Color(red: 0x34/255.0, green: 0x37/255.0, blue: 0x46/255.0)        // #343746
-    static let trackGray = Color(red: 0x44/255.0, green: 0x47/255.0, blue: 0x5A/255.0)     // #44475A
-    static let accent = Color(red: 0xBD/255.0, green: 0x93/255.0, blue: 0xF9/255.0)        // #BD93F9
-    static let textPrimary = Color(red: 0xF8/255.0, green: 0xF8/255.0, blue: 0xF2/255.0)   // #F8F8F2
-    static let textSecondary = Color(red: 0x62/255.0, green: 0x72/255.0, blue: 0xA4/255.0) // #6272A4
-    static let cardCorner: CGFloat = 12
+    // Neon Noir palette
+    static let panelBg = Color(red: 0x00/255.0, green: 0x00/255.0, blue: 0x00/255.0)       // #000000
+    static let cardBg = Color(red: 0x0C/255.0, green: 0x0C/255.0, blue: 0x14/255.0)        // #0C0C14
+    static let trackGray = Color(red: 0x1C/255.0, green: 0x1C/255.0, blue: 0x28/255.0)     // #1C1C28
+    static let accent = Color(red: 0x00/255.0, green: 0xD4/255.0, blue: 0xFF/255.0)        // #00D4FF
+    static let textPrimary = Color(red: 0xE0/255.0, green: 0xE0/255.0, blue: 0xE8/255.0)   // #E0E0E8
+    static let textSecondary = Color(red: 0x4A/255.0, green: 0x4A/255.0, blue: 0x5C/255.0) // #4A4A5C
+    static let cardCorner: CGFloat = 4
 }

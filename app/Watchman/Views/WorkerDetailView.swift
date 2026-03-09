@@ -1,25 +1,26 @@
 import SwiftUI
 
-// MARK: - Dracula Accent Colors
+// MARK: - Neon Noir Accent Colors
 
-private let draculaGreen = Color(red: 0x50/255.0, green: 0xFA/255.0, blue: 0x7B/255.0)   // #50FA7B
-private let draculaYellow = Color(red: 0xF1/255.0, green: 0xFA/255.0, blue: 0x8C/255.0)  // #F1FA8C
-private let draculaRed = Color(red: 0xFF/255.0, green: 0x55/255.0, blue: 0x55/255.0)     // #FF5555
-private let draculaOrange = Color(red: 0xFF/255.0, green: 0xB8/255.0, blue: 0x6C/255.0)  // #FFB86C
+private let neonGreen = Color(red: 0x00/255.0, green: 0xFF/255.0, blue: 0x88/255.0)    // #00FF88
+private let neonYellow = Color(red: 0xFF/255.0, green: 0xE5/255.0, blue: 0x00/255.0)   // #FFE500
+private let neonRed = Color(red: 0xFF/255.0, green: 0x00/255.0, blue: 0x50/255.0)      // #FF0050
+private let neonOrange = Color(red: 0xFF/255.0, green: 0x7A/255.0, blue: 0x00/255.0)   // #FF7A00
+private let neonGray = Color(red: 0x33/255.0, green: 0x33/255.0, blue: 0x44/255.0)     // #333344
 
 // MARK: - Color Helpers
 
 private func usageColor(_ percent: Int) -> Color {
-    if percent >= 85 { return draculaRed }
-    if percent >= 70 { return draculaYellow }
-    return draculaGreen
+    if percent >= 85 { return neonRed }
+    if percent >= 70 { return neonYellow }
+    return neonGreen
 }
 
 private func tempColor(_ temp: Int) -> Color {
-    if temp >= 85 { return draculaRed }
-    if temp >= 75 { return draculaOrange }
-    if temp >= 60 { return draculaYellow }
-    return Theme.textSecondary
+    if temp >= 85 { return neonRed }
+    if temp >= 75 { return neonOrange }
+    if temp >= 60 { return neonYellow }
+    return neonGray
 }
 
 // MARK: - MetricRow
@@ -139,7 +140,7 @@ struct WorkerDetailView: View {
             }
         }
         .padding(10)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.cardBg))
+        .background(RoundedRectangle(cornerRadius: Theme.cardCorner).fill(Theme.cardBg))
         .opacity(worker.state == .unreachable ? 0.5 : 1.0)
     }
 }
