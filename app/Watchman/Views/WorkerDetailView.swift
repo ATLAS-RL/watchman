@@ -6,7 +6,7 @@ private func tempColor(_ temp: Int) -> Color {
     if temp >= 85 { return .red }
     if temp >= 75 { return .orange }
     if temp >= 60 { return .yellow }
-    return .secondary
+    return Theme.textSecondary
 }
 
 private func vramColor(_ fraction: Double) -> Color {
@@ -23,20 +23,22 @@ private struct GpuGauge: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(Color.green.opacity(0.2), lineWidth: 4)
+                .stroke(Theme.trackGray, lineWidth: 6)
             Circle()
                 .trim(from: 0, to: CGFloat(min(percent, 100)) / 100.0)
-                .stroke(Color.green, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .stroke(Theme.accent, style: StrokeStyle(lineWidth: 6, lineCap: .round))
                 .rotationEffect(.degrees(-90))
             VStack(spacing: -2) {
                 Text("\(percent)")
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .monospacedDigit()
+                    .foregroundStyle(Theme.textPrimary)
                 Text("%")
                     .font(.system(size: 8, weight: .medium, design: .rounded))
+                    .foregroundStyle(Theme.textSecondary)
             }
         }
-        .frame(width: 44, height: 44)
+        .frame(width: 56, height: 56)
     }
 }
 
@@ -51,7 +53,7 @@ private struct CompactBar: View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: height / 2)
-                    .fill(tint.opacity(0.15))
+                    .fill(Theme.trackGray)
                 RoundedRectangle(cornerRadius: height / 2)
                     .fill(tint)
                     .frame(width: geo.size.width * min(max(CGFloat(fraction), 0), 1))
@@ -74,16 +76,17 @@ private struct SecondaryMetricRow: View {
         HStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
                 .frame(width: 14)
             Text(label)
                 .font(.caption)
+                .foregroundStyle(Theme.accent)
                 .frame(width: 28, alignment: .leading)
             CompactBar(fraction: fraction, height: 5, tint: tint)
             Text(valueText)
                 .font(.caption2)
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
                 .frame(width: 90, alignment: .trailing)
         }
     }
@@ -116,23 +119,24 @@ struct WorkerDetailView: View {
                 }
                 Text(displayAlias)
                     .font(.headline)
+                    .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
                 Spacer()
                 if worker.state == .unreachable {
                     Image(systemName: "wifi.slash")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                         .symbolEffect(.pulse)
                 }
                 if let staleness = worker.staleness {
                     Text(staleness)
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textSecondary)
                 }
             }
 
             if let m = worker.metrics {
-                // GPU section — highlighted green card
+                // GPU section — highlighted card
                 if let gpu = m.gpu {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 10) {
@@ -142,15 +146,16 @@ struct WorkerDetailView: View {
                                 HStack {
                                     Text("GPU")
                                         .font(.caption.bold())
+                                        .foregroundStyle(Theme.accent)
                                     Text("\(gpu.usage_percent)%")
                                         .font(.caption)
                                         .monospacedDigit()
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(Theme.textSecondary)
                                 }
                                 HStack(spacing: 4) {
                                     Text("VRAM")
                                         .font(.caption2)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(Theme.textSecondary)
                                     CompactBar(
                                         fraction: gpu.vramFraction,
                                         height: 5,
@@ -159,7 +164,7 @@ struct WorkerDetailView: View {
                                     Text("\(gpu.vramUsedFormatted)/\(gpu.vramTotalFormatted)")
                                         .font(.caption2)
                                         .monospacedDigit()
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(Theme.textSecondary)
                                 }
                                 HStack(spacing: 12) {
                                     Label("\(gpu.temp_c)°C", systemImage: "thermometer")
@@ -167,7 +172,7 @@ struct WorkerDetailView: View {
                                         .foregroundStyle(tempColor(Int(gpu.temp_c)))
                                     Label("\(gpu.fan_speed_percent)%", systemImage: "fan")
                                         .font(.caption2)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(Theme.textSecondary)
                                 }
                             }
                         }
@@ -176,18 +181,23 @@ struct WorkerDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(Color.green.opacity(0.06))
+                            .fill(Theme.cardBg)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Theme.accent.opacity(0.08))
+                            )
                     )
                 } else {
                     HStack {
                         Image(systemName: "gpu")
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                         Text("GPU")
                             .font(.caption)
+                            .foregroundStyle(Theme.textPrimary)
                         Text("N/A")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                     }
                 }
 
@@ -221,7 +231,7 @@ struct WorkerDetailView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "thermometer")
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.textSecondary)
                             .frame(width: 14)
                         Text(String(format: "CPU %.0f°C", cpuTemp))
                             .font(.caption2)
@@ -233,13 +243,8 @@ struct WorkerDetailView: View {
         }
         .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(.background)
-                .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(.quaternary, lineWidth: 0.5)
+            RoundedRectangle(cornerRadius: Theme.cardCorner)
+                .fill(Theme.cardBg)
         )
         .opacity(worker.state == .unreachable ? 0.6 : 1.0)
     }

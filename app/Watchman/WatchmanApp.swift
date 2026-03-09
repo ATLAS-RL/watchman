@@ -9,6 +9,7 @@ struct WatchmanApp: App {
     var body: some Scene {
         MenuBarExtra {
             MenuBarView(poller: poller, settings: settings)
+                .preferredColorScheme(.dark)
         } label: {
             Image(nsImage: renderMenuBarImage())
         }
@@ -16,11 +17,11 @@ struct WatchmanApp: App {
 
         Settings {
             SettingsView(settings: settings, workers: poller.workers)
+                .preferredColorScheme(.dark)
         }
     }
 
     // MARK: - Render colored menu bar label as NSImage
-    // Format: {alias} ● {peak%} 🌡{temp} │ {alias} ● {peak%} 🌡{temp}
 
     private func renderMenuBarImage() -> NSImage {
         let attributed = buildAttributedString()
@@ -72,17 +73,26 @@ struct WatchmanApp: App {
                     ))
                 }
 
-                // Temp with thermometer
+                // Temp with SF Symbol thermometer (white/colorless)
                 if let temp = worker.maxTemp {
                     result.append(NSAttributedString(
                         string: " ",
                         attributes: [.font: smallFont]
                     ))
-                    // Thermometer icon as text
-                    result.append(NSAttributedString(
-                        string: "🌡",
-                        attributes: [.font: NSFont.systemFont(ofSize: 9)]
-                    ))
+
+                    // Render SF Symbol thermometer as white icon
+                    if let thermImage = NSImage(systemSymbolName: "thermometer.medium", accessibilityDescription: nil) {
+                        let config = NSImage.SymbolConfiguration(pointSize: 9, weight: .regular)
+                        if let configured = thermImage.withSymbolConfiguration(config) {
+                            let tinted = configured.tinted(with: .white)
+                            let attachment = NSTextAttachment()
+                            attachment.image = tinted
+                            let iconSize = tinted.size
+                            attachment.bounds = CGRect(x: 0, y: -1, width: iconSize.width, height: iconSize.height)
+                            result.append(NSAttributedString(attachment: attachment))
+                        }
+                    }
+
                     result.append(NSAttributedString(
                         string: "\(temp)°",
                         attributes: [.font: font, .foregroundColor: nsTempColor(temp)]
@@ -104,5 +114,20 @@ struct WatchmanApp: App {
         if temp >= 75 { return .systemOrange }
         if temp >= 60 { return .systemYellow }
         return .labelColor
+    }
+}
+
+// MARK: - NSImage tinting helper
+
+private extension NSImage {
+    func tinted(with color: NSColor) -> NSImage {
+        let image = self.copy() as! NSImage
+        image.lockFocus()
+        color.set()
+        let rect = NSRect(origin: .zero, size: image.size)
+        rect.fill(using: .sourceAtop)
+        image.unlockFocus()
+        image.isTemplate = false
+        return image
     }
 }

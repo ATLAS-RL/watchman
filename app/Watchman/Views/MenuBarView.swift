@@ -17,11 +17,11 @@ private struct StatusPill: View {
     var body: some View {
         Text(status.label)
             .font(.caption2.bold())
-            .foregroundStyle(color)
+            .foregroundStyle(.white)
             .padding(.horizontal, 8)
             .padding(.vertical, 2)
             .background(
-                Capsule().fill(color.opacity(0.15))
+                Capsule().fill(color)
             )
     }
 }
@@ -45,6 +45,7 @@ struct MenuBarView: View {
             HStack {
                 Text("Watchman")
                     .font(.headline)
+                    .foregroundStyle(Theme.textPrimary)
                 Spacer()
                 StatusPill(status: poller.overallStatus)
             }
@@ -63,35 +64,32 @@ struct MenuBarView: View {
             }
             .padding(.horizontal, 12)
 
-            Divider()
-                .padding(.top, 10)
-                .padding(.bottom, 6)
+            Spacer().frame(height: 10)
 
             // Footer
             HStack {
                 Text(relativeTimestamp)
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(Theme.textSecondary)
                 Spacer()
-                Button {
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                } label: {
+                SettingsLink {
                     Image(systemName: "gear")
                         .font(.caption)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
                 Button("Quit") {
                     NSApplication.shared.terminate(nil)
                 }
                 .buttonStyle(.plain)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
                 .keyboardShortcut("q")
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
         }
         .frame(width: 360)
+        .background(Theme.panelBg)
     }
 }
