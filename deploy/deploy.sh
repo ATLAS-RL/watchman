@@ -14,16 +14,24 @@ fi
 for worker in "${WORKERS[@]}"; do
     echo "=== Deploying to $worker ==="
 
+    echo "  Creating directories..."
+    ssh "$worker" "mkdir -p ~/.local/bin ~/.config/systemd/user"
+
+    echo "  Stopping existing service..."
+    ssh "$worker" "systemctl --user stop watchman-agent 2>/dev/null || true"
+
     echo "  Copying binary..."
-    scp "$BINARY" "${worker}:/tmp/watchman-agent"
-    ssh "$worker" "sudo mv /tmp/watchman-agent /usr/local/bin/watchman-agent && sudo chmod +x /usr/local/bin/watchman-agent"
+    scp "$BINARY" "${worker}:~/.local/bin/watchman-agent"
+    ssh "$worker" "chmod +x ~/.local/bin/watchman-agent"
 
     echo "  Copying systemd unit..."
-    scp "$SERVICE" "${worker}:/tmp/watchman-agent.service"
-    ssh "$worker" "sudo mv /tmp/watchman-agent.service /etc/systemd/system/watchman-agent.service"
+    scp "$SERVICE" "${worker}:~/.config/systemd/user/watchman-agent.service"
 
     echo "  Enabling and starting service..."
-    ssh "$worker" "sudo systemctl daemon-reload && sudo systemctl enable --now watchman-agent"
+    ssh "$worker" "systemctl --user daemon-reload && systemctl --user enable --now watchman-agent"
+
+    echo "  Waiting for startup..."
+    sleep 2
 
     echo "  Verifying..."
     if ssh "$worker" "curl -sf http://localhost:8085/health" > /dev/null 2>&1; then
@@ -36,3 +44,6 @@ for worker in "${WORKERS[@]}"; do
 done
 
 echo "Deployment complete."
+echo ""
+echo "NOTE: For the agent to run when not logged in, enable lingering on each worker:"
+echo "  sudo loginctl enable-linger ivantha"

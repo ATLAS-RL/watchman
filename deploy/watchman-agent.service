@@ -4,11 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
-User=ivantha
-ExecStart=/usr/local/bin/watchman-agent
+ExecStart=%h/.local/bin/watchman-agent
 Restart=always
 RestartSec=5
 Environment=RUST_LOG=info
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

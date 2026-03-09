@@ -100,7 +100,13 @@ fn collect_temp_metrics(components: &Components) -> TempMetrics {
     let mut cpu_temp: Option<f32> = None;
     for component in components.list() {
         let label = component.label().to_lowercase();
-        if label.contains("cpu") || label.contains("core") || label.contains("package") {
+        if label.contains("cpu")
+            || label.contains("core")
+            || label.contains("package")
+            || label.contains("tctl")
+            || label.contains("tccd")
+            || label.contains("k10temp")
+        {
             if let Some(temp) = component.temperature() {
                 cpu_temp = Some(cpu_temp.map_or(temp, |t: f32| t.max(temp)));
             }
