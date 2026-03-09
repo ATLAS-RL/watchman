@@ -1,0 +1,27 @@
+name: Watchman
+options:
+  bundleIdPrefix: com.ivantha
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "16.0"
+targets:
+  Watchman:
+    type: application
+    platform: macOS
+    sources:
+      - path: Watchman
+        excludes:
+          - Package.swift
+    info:
+      path: Watchman/Info.plist
+      properties:
+        LSUIElement: true
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGNING_REQUIRED: NO
+        PRODUCT_BUNDLE_IDENTIFIER: com.ivantha.Watchman
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        SWIFT_VERSION: "5.9"
