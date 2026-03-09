@@ -26,9 +26,9 @@ struct WatchmanApp: App {
     private func renderMenuBarImage() -> NSImage {
         let attributed = buildAttributedString()
         let size = attributed.size()
-        let image = NSImage(size: NSSize(width: ceil(size.width), height: 18))
+        let image = NSImage(size: NSSize(width: ceil(size.width), height: 22))
         image.lockFocus()
-        attributed.draw(at: NSPoint(x: 0, y: (18 - size.height) / 2))
+        attributed.draw(at: NSPoint(x: 0, y: (22 - size.height) / 2))
         image.unlockFocus()
         image.isTemplate = false
         return image
@@ -36,8 +36,8 @@ struct WatchmanApp: App {
 
     private func buildAttributedString() -> NSAttributedString {
         let result = NSMutableAttributedString()
-        let font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
-        let smallFont = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular)
+        let font = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .medium)
+        let smallFont = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
 
         for (index, worker) in poller.workers.enumerated() {
             if index > 0 {
@@ -61,30 +61,38 @@ struct WatchmanApp: App {
                     attributes: [.font: smallFont, .foregroundColor: NSColor.secondaryLabelColor]
                 ))
 
-                // Peak usage with colored dot
+                // Peak usage with gauge icon
                 if let peak = worker.peakUsage {
-                    result.append(NSAttributedString(
-                        string: "●",
-                        attributes: [.font: NSFont.systemFont(ofSize: 7), .foregroundColor: nsUsageColor(peak)]
-                    ))
+                    let usageColor = nsUsageColor(peak)
+                    if let gaugeImage = NSImage(systemSymbolName: "gauge.with.dots.needle.67percent", accessibilityDescription: nil) {
+                        let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .regular)
+                        if let configured = gaugeImage.withSymbolConfiguration(config) {
+                            let tinted = configured.tinted(with: usageColor)
+                            let attachment = NSTextAttachment()
+                            attachment.image = tinted
+                            let iconSize = tinted.size
+                            attachment.bounds = CGRect(x: 0, y: -1, width: iconSize.width, height: iconSize.height)
+                            result.append(NSAttributedString(attachment: attachment))
+                        }
+                    }
                     result.append(NSAttributedString(
                         string: "\(peak)%",
-                        attributes: [.font: font, .foregroundColor: nsUsageColor(peak)]
+                        attributes: [.font: font, .foregroundColor: usageColor]
                     ))
                 }
 
-                // Temp with SF Symbol thermometer (white/colorless)
+                // Temp with SF Symbol thermometer (colored by temp)
                 if let temp = worker.maxTemp {
                     result.append(NSAttributedString(
-                        string: " ",
+                        string: "  ",
                         attributes: [.font: smallFont]
                     ))
 
-                    // Render SF Symbol thermometer as white icon
+                    // Render SF Symbol thermometer colored by temperature
                     if let thermImage = NSImage(systemSymbolName: "thermometer.medium", accessibilityDescription: nil) {
-                        let config = NSImage.SymbolConfiguration(pointSize: 9, weight: .regular)
+                        let config = NSImage.SymbolConfiguration(pointSize: 11, weight: .regular)
                         if let configured = thermImage.withSymbolConfiguration(config) {
-                            let tinted = configured.tinted(with: .white)
+                            let tinted = configured.tinted(with: nsTempColor(temp))
                             let attachment = NSTextAttachment()
                             attachment.image = tinted
                             let iconSize = tinted.size
