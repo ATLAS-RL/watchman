@@ -43,7 +43,7 @@ struct WatchmanApp: App {
             if index > 0 {
                 result.append(NSAttributedString(
                     string: "  │  ",
-                    attributes: [.font: smallFont, .foregroundColor: NSColor.tertiaryLabelColor]
+                    attributes: [.font: smallFont, .foregroundColor: NSColor(white: 0.75, alpha: 1)]
                 ))
             }
 
@@ -52,13 +52,13 @@ struct WatchmanApp: App {
             if worker.state == .unreachable {
                 result.append(NSAttributedString(
                     string: "\(alias) — —",
-                    attributes: [.font: font, .foregroundColor: NSColor.tertiaryLabelColor]
+                    attributes: [.font: font, .foregroundColor: NSColor(white: 0.60, alpha: 1)]
                 ))
             } else {
                 // Name
                 result.append(NSAttributedString(
                     string: "\(alias) ",
-                    attributes: [.font: smallFont, .foregroundColor: NSColor.secondaryLabelColor]
+                    attributes: [.font: smallFont, .foregroundColor: NSColor(white: 0.75, alpha: 1)]
                 ))
 
                 // Peak usage with gauge icon
@@ -121,7 +121,7 @@ struct WatchmanApp: App {
         if temp >= 85 { return NSColor(red: 0xFF/255.0, green: 0x00/255.0, blue: 0x50/255.0, alpha: 1) } // #FF0050
         if temp >= 75 { return NSColor(red: 0xFF/255.0, green: 0x7A/255.0, blue: 0x00/255.0, alpha: 1) } // #FF7A00
         if temp >= 60 { return NSColor(red: 0xFF/255.0, green: 0xE5/255.0, blue: 0x00/255.0, alpha: 1) } // #FFE500
-        return NSColor(red: 0x33/255.0, green: 0x33/255.0, blue: 0x44/255.0, alpha: 1) // #333344
+        return NSColor(red: 0x66/255.0, green: 0x88/255.0, blue: 0x99/255.0, alpha: 1) // #668899 cool gray, visible on menu bar
     }
 }
 
