@@ -1,31 +1,5 @@
 import SwiftUI
 
-// MARK: - StatusPill
-
-private struct StatusPill: View {
-    let status: OverallStatus
-
-    private var color: Color {
-        switch status {
-        case .allGood: return .green
-        case .someWarning: return .yellow
-        case .someCritical: return .red
-        case .allUnreachable: return .gray
-        }
-    }
-
-    var body: some View {
-        Text(status.label)
-            .font(.caption2.bold())
-            .foregroundStyle(.white)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 2)
-            .background(
-                Capsule().fill(color)
-            )
-    }
-}
-
 // MARK: - MenuBarView
 
 struct MenuBarView: View {
@@ -47,7 +21,21 @@ struct MenuBarView: View {
                     .font(.headline)
                     .foregroundStyle(Theme.textPrimary)
                 Spacer()
-                StatusPill(status: poller.overallStatus)
+                SettingsLink {
+                    Image(systemName: "gear")
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.textSecondary)
+                Button {
+                    NSApplication.shared.terminate(nil)
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.textSecondary)
+                .keyboardShortcut("q")
             }
             .padding(.horizontal, 12)
             .padding(.top, 10)
@@ -72,19 +60,12 @@ struct MenuBarView: View {
                     .font(.caption2)
                     .foregroundStyle(Theme.textSecondary)
                 Spacer()
-                SettingsLink {
-                    Image(systemName: "gear")
-                        .font(.caption)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(Theme.textSecondary)
                 Button("Quit") {
                     NSApplication.shared.terminate(nil)
                 }
                 .buttonStyle(.plain)
                 .font(.caption)
                 .foregroundStyle(Theme.textSecondary)
-                .keyboardShortcut("q")
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 8)

@@ -1,93 +1,85 @@
 import SwiftUI
 
+// MARK: - Cobalt Next Dark Accent Colors
+
+private let cobaltGreen = Color(red: 0x99/255.0, green: 0xC7/255.0, blue: 0x95/255.0)   // #99C795
+private let cobaltYellow = Color(red: 0xFA/255.0, green: 0xC8/255.0, blue: 0x63/255.0)  // #FAC863
+private let cobaltRed = Color(red: 0xE6/255.0, green: 0x57/255.0, blue: 0x7A/255.0)     // #E6577A
+private let cobaltOrange = Color(red: 0xD6/255.0, green: 0x83/255.0, blue: 0x8C/255.0)  // #D6838C
+
 // MARK: - Color Helpers
 
+private func usageColor(_ percent: Int) -> Color {
+    if percent >= 85 { return cobaltRed }
+    if percent >= 70 { return cobaltYellow }
+    return cobaltGreen
+}
+
 private func tempColor(_ temp: Int) -> Color {
-    if temp >= 85 { return .red }
-    if temp >= 75 { return .orange }
-    if temp >= 60 { return .yellow }
+    if temp >= 85 { return cobaltRed }
+    if temp >= 75 { return cobaltOrange }
+    if temp >= 60 { return cobaltYellow }
     return Theme.textSecondary
 }
 
-private func vramColor(_ fraction: Double) -> Color {
-    if fraction >= 0.9 { return .red }
-    if fraction >= 0.7 { return .yellow }
-    return .green
-}
+// MARK: - MetricRow
 
-// MARK: - GpuGauge
-
-private struct GpuGauge: View {
-    let percent: Int
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .stroke(Theme.trackGray, lineWidth: 6)
-            Circle()
-                .trim(from: 0, to: CGFloat(min(percent, 100)) / 100.0)
-                .stroke(Theme.accent, style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-            VStack(spacing: -2) {
-                Text("\(percent)")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.textPrimary)
-                Text("%")
-                    .font(.system(size: 8, weight: .medium, design: .rounded))
-                    .foregroundStyle(Theme.textSecondary)
-            }
-        }
-        .frame(width: 56, height: 56)
-    }
-}
-
-// MARK: - CompactBar
-
-private struct CompactBar: View {
-    let fraction: Double
-    var height: CGFloat = 6
-    var tint: Color = .blue
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: height / 2)
-                    .fill(Theme.trackGray)
-                RoundedRectangle(cornerRadius: height / 2)
-                    .fill(tint)
-                    .frame(width: geo.size.width * min(max(CGFloat(fraction), 0), 1))
-            }
-        }
-        .frame(height: height)
-    }
-}
-
-// MARK: - SecondaryMetricRow
-
-private struct SecondaryMetricRow: View {
-    let icon: String
+private struct MetricRow: View {
     let label: String
-    let fraction: Double
-    let valueText: String
-    var tint: Color = .blue
+    let percent: Int
+    var temp: Int? = nil
+
+    private var barColor: Color { usageColor(percent) }
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.caption2)
-                .foregroundStyle(Theme.textSecondary)
-                .frame(width: 14)
             Text(label)
-                .font(.caption)
-                .foregroundStyle(Theme.accent)
-                .frame(width: 28, alignment: .leading)
-            CompactBar(fraction: fraction, height: 5, tint: tint)
-            Text(valueText)
-                .font(.caption2)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundStyle(Theme.textSecondary)
+                .frame(width: 36, alignment: .leading)
+            Text("\(percent)%")
+                .font(.system(size: 11, design: .monospaced))
+                .monospacedDigit()
+                .foregroundStyle(barColor)
+                .frame(width: 32, alignment: .trailing)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Theme.trackGray)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(barColor)
+                        .frame(width: geo.size.width * CGFloat(min(max(percent, 0), 100)) / 100.0)
+                }
+            }
+            .frame(height: 6)
+            if let temp {
+                Text("\(temp)°C")
+                    .font(.system(size: 11, design: .monospaced))
+                    .monospacedDigit()
+                    .foregroundStyle(tempColor(temp))
+                    .frame(width: 40, alignment: .trailing)
+            }
+        }
+    }
+}
+
+// MARK: - CapacityRow
+
+private struct CapacityRow: View {
+    let label: String
+    let used: String
+    let total: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundStyle(Theme.textSecondary)
+                .frame(width: 36, alignment: .leading)
+            Text("\(used)/\(total)")
+                .font(.system(size: 11, design: .monospaced))
                 .monospacedDigit()
                 .foregroundStyle(Theme.textSecondary)
-                .frame(width: 90, alignment: .trailing)
         }
     }
 }
@@ -104,152 +96,50 @@ struct WorkerDetailView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Header: badge + name + staleness
+        VStack(alignment: .leading, spacing: 6) {
+            // Header: status dot + name
             HStack(spacing: 6) {
-                if let idx = worker.index {
-                    Text("\(idx)")
-                        .font(.caption2.bold())
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 1)
-                        .background(
-                            Capsule().fill(worker.state == .unreachable ? .gray : badgeColor(idx))
-                        )
-                }
+                Circle()
+                    .fill(worker.state.systemColor)
+                    .frame(width: 8, height: 8)
                 Text(displayAlias)
-                    .font(.headline)
+                    .font(.subheadline.bold())
                     .foregroundStyle(Theme.textPrimary)
-                    .lineLimit(1)
-                Spacer()
                 if worker.state == .unreachable {
-                    Image(systemName: "wifi.slash")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textSecondary)
-                        .symbolEffect(.pulse)
-                }
-                if let staleness = worker.staleness {
-                    Text(staleness)
+                    Text("unreachable")
                         .font(.caption2)
                         .foregroundStyle(Theme.textSecondary)
                 }
             }
 
             if let m = worker.metrics {
-                // GPU section — highlighted card
-                if let gpu = m.gpu {
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 10) {
-                            GpuGauge(percent: Int(gpu.usage_percent))
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack {
-                                    Text("GPU")
-                                        .font(.caption.bold())
-                                        .foregroundStyle(Theme.accent)
-                                    Text("\(gpu.usage_percent)%")
-                                        .font(.caption)
-                                        .monospacedDigit()
-                                        .foregroundStyle(Theme.textSecondary)
-                                }
-                                HStack(spacing: 4) {
-                                    Text("VRAM")
-                                        .font(.caption2)
-                                        .foregroundStyle(Theme.textSecondary)
-                                    CompactBar(
-                                        fraction: gpu.vramFraction,
-                                        height: 5,
-                                        tint: vramColor(gpu.vramFraction)
-                                    )
-                                    Text("\(gpu.vramUsedFormatted)/\(gpu.vramTotalFormatted)")
-                                        .font(.caption2)
-                                        .monospacedDigit()
-                                        .foregroundStyle(Theme.textSecondary)
-                                }
-                                HStack(spacing: 12) {
-                                    Label("\(gpu.temp_c)°C", systemImage: "thermometer")
-                                        .font(.caption2)
-                                        .foregroundStyle(tempColor(Int(gpu.temp_c)))
-                                    Label("\(gpu.fan_speed_percent)%", systemImage: "fan")
-                                        .font(.caption2)
-                                        .foregroundStyle(Theme.textSecondary)
-                                }
-                            }
-                        }
-                    }
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Theme.cardBg)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Theme.accent.opacity(0.08))
-                            )
-                    )
-                } else {
-                    HStack {
-                        Image(systemName: "gpu")
-                            .font(.caption2)
-                            .foregroundStyle(Theme.textSecondary)
-                        Text("GPU")
-                            .font(.caption)
-                            .foregroundStyle(Theme.textPrimary)
-                        Text("N/A")
-                            .font(.caption)
-                            .foregroundStyle(Theme.textSecondary)
-                    }
-                }
-
-                // Secondary metrics
-                SecondaryMetricRow(
-                    icon: "cpu",
+                // CPU block (usage + temp bar, then RAM capacity)
+                MetricRow(
                     label: "CPU",
-                    fraction: Double(m.cpu.usage_percent) / 100.0,
-                    valueText: String(format: "%.0f%%", m.cpu.usage_percent),
-                    tint: .blue
+                    percent: Int(m.cpu.usage_percent),
+                    temp: m.temps.cpu_temp_c.map { Int($0) }
                 )
+                CapacityRow(label: "RAM", used: m.memory.usedFormatted, total: m.memory.totalFormatted)
 
-                SecondaryMetricRow(
-                    icon: "memorychip",
-                    label: "RAM",
-                    fraction: m.memory.fraction,
-                    valueText: "\(m.memory.usedFormatted)/\(m.memory.totalFormatted)",
-                    tint: .orange
-                )
-
-                SecondaryMetricRow(
-                    icon: "internaldrive",
-                    label: "Disk",
-                    fraction: m.disk.fraction,
-                    valueText: "\(m.disk.usedFormatted)/\(m.disk.totalFormatted)",
-                    tint: .purple
-                )
-
-                // CPU temperature
-                if let cpuTemp = m.temps.cpu_temp_c {
-                    HStack(spacing: 4) {
-                        Image(systemName: "thermometer")
-                            .font(.caption2)
+                // GPU block (usage + temp bar, then VRAM capacity) — if present
+                if let gpu = m.gpu {
+                    MetricRow(label: "GPU", percent: Int(gpu.usage_percent), temp: Int(gpu.temp_c))
+                    CapacityRow(label: "VRAM", used: gpu.vramUsedFormatted, total: gpu.vramTotalFormatted)
+                } else {
+                    HStack(spacing: 6) {
+                        Text("GPU")
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
                             .foregroundStyle(Theme.textSecondary)
-                            .frame(width: 14)
-                        Text(String(format: "CPU %.0f°C", cpuTemp))
-                            .font(.caption2)
-                            .foregroundStyle(tempColor(Int(cpuTemp)))
+                            .frame(width: 36, alignment: .leading)
+                        Text("—")
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(Theme.textSecondary)
                     }
-                    .padding(.leading, 1)
                 }
             }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.cardCorner)
-                .fill(Theme.cardBg)
-        )
-        .opacity(worker.state == .unreachable ? 0.6 : 1.0)
-    }
-
-    private func badgeColor(_ index: Int) -> Color {
-        [Color.blue, .purple, .teal, .indigo][index % 4]
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.cardBg))
+        .opacity(worker.state == .unreachable ? 0.5 : 1.0)
     }
 }
