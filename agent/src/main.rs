@@ -2,12 +2,13 @@ mod power;
 
 use axum::{extract::State, http::StatusCode, response::Json, routing::get, Router};
 use chrono::Utc;
+use mdns_sd::{ServiceDaemon, ServiceInfo};
 use nvml_wrapper::Nvml;
 use serde::Serialize;
 use std::sync::Arc;
-use sysinfo::{Components, Disks, System};
+use sysinfo::{Components, Disks, Networks, System};
 use tokio::sync::RwLock;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::power::RaplSampler;
 
@@ -18,10 +19,19 @@ struct Metrics {
     gpu: Option<GpuMetrics>,
     memory: MemoryMetrics,
     disk: DiskMetrics,
+    io: IoMetrics,
     temps: TempMetrics,
     power: PowerMetrics,
     hardware: HardwareInfo,
     timestamp: String,
+}
+
+#[derive(Serialize, Clone, Default)]
+struct IoMetrics {
+    disk_read_bps: u64,
+    disk_write_bps: u64,
+    net_rx_bps: u64,
+    net_tx_bps: u64,
 }
 
 #[derive(Serialize, Clone, Default)]
@@ -100,8 +110,7 @@ fn collect_memory_metrics(sys: &System) -> MemoryMetrics {
     }
 }
 
-fn collect_disk_metrics() -> DiskMetrics {
-    let disks = Disks::new_with_refreshed_list();
+fn collect_disk_metrics(disks: &Disks) -> DiskMetrics {
     let mut total: u64 = 0;
     let mut available: u64 = 0;
     for disk in disks.list() {
@@ -109,9 +118,44 @@ fn collect_disk_metrics() -> DiskMetrics {
         available += disk.available_space();
     }
     DiskMetrics {
-        used_gb: (total - available) / 1_073_741_824,
+        used_gb: total.saturating_sub(available) / 1_073_741_824,
         total_gb: total / 1_073_741_824,
     }
+}
+
+/// Aggregate disk throughput across all physical disks for this refresh window.
+fn aggregate_disk_io(disks: &Disks, dt_secs: f64) -> (u64, u64) {
+    if dt_secs <= 0.0 {
+        return (0, 0);
+    }
+    let mut read: u64 = 0;
+    let mut written: u64 = 0;
+    for disk in disks.list() {
+        let u = disk.usage();
+        read += u.read_bytes;
+        written += u.written_bytes;
+    }
+    (
+        (read as f64 / dt_secs) as u64,
+        (written as f64 / dt_secs) as u64,
+    )
+}
+
+/// Aggregate network throughput across all interfaces for this refresh window.
+fn aggregate_net_io(networks: &Networks, dt_secs: f64) -> (u64, u64) {
+    if dt_secs <= 0.0 {
+        return (0, 0);
+    }
+    let mut rx: u64 = 0;
+    let mut tx: u64 = 0;
+    for (_, data) in networks.iter() {
+        rx += data.received();
+        tx += data.transmitted();
+    }
+    (
+        (rx as f64 / dt_secs) as u64,
+        (tx as f64 / dt_secs) as u64,
+    )
 }
 
 fn collect_temp_metrics(components: &Components) -> TempMetrics {
@@ -164,6 +208,47 @@ fn collect_gpu_metrics(nvml: &Nvml) -> (Option<GpuMetrics>, Option<f32>, Option<
     (Some(gpu), power_w, name)
 }
 
+/// Register a Bonjour/mDNS service `_watchman._tcp.local.` pointing at this
+/// host:port. The returned `ServiceDaemon` must outlive the agent — dropping
+/// it stops the announcement. Returns `None` on any failure; the agent will
+/// still serve HTTP, just without auto-discovery.
+fn spawn_mdns_announce(hostname: &str, port: u16) -> Option<ServiceDaemon> {
+    let daemon = match ServiceDaemon::new() {
+        Ok(d) => d,
+        Err(e) => {
+            warn!("mDNS daemon unavailable: {}", e);
+            return None;
+        }
+    };
+
+    let instance_name = format!("watchman-{hostname}");
+    let host_name = format!("{hostname}.local.");
+    let info_res = ServiceInfo::new(
+        "_watchman._tcp.local.",
+        &instance_name,
+        &host_name,
+        "",
+        port,
+        None,
+    )
+    .map(|info| info.enable_addr_auto());
+
+    let info = match info_res {
+        Ok(i) => i,
+        Err(e) => {
+            warn!("mDNS ServiceInfo failed: {}", e);
+            return None;
+        }
+    };
+
+    if let Err(e) = daemon.register(info) {
+        warn!("mDNS register failed: {}", e);
+        return None;
+    }
+    info!("mDNS announce: _watchman._tcp.local. -> {}:{}", host_name, port);
+    Some(daemon)
+}
+
 fn read_cpu_model() -> Option<String> {
     let raw = std::fs::read_to_string("/proc/cpuinfo").ok()?;
     for line in raw.lines() {
@@ -197,6 +282,12 @@ async fn main() {
     let hostname = get_hostname();
     info!("Starting watchman-agent on {}", hostname);
 
+    // Best-effort mDNS announce for `_watchman._tcp.local.` so the macOS app's
+    // Bonjour browser can auto-discover this agent. Keep the daemon alive for
+    // the lifetime of the process; drop it silently if advertisement fails
+    // (e.g. containerised deploys without multicast).
+    let _mdns_guard = spawn_mdns_announce(&hostname, 8085);
+
     let initial_metrics = Metrics {
         hostname: hostname.clone(),
         cpu: CpuMetrics {
@@ -213,6 +304,7 @@ async fn main() {
             used_gb: 0,
             total_gb: 0,
         },
+        io: IoMetrics::default(),
         temps: TempMetrics { cpu_temp_c: None },
         power: PowerMetrics::default(),
         hardware: HardwareInfo::default(),
@@ -229,14 +321,17 @@ async fn main() {
     tokio::spawn(async move {
         let mut sys = System::new_all();
         let mut components = Components::new_with_refreshed_list();
+        let mut disks = Disks::new_with_refreshed_list();
+        let mut networks = Networks::new_with_refreshed_list();
         let nvml = Nvml::init().ok();
         let mut rapl = RaplSampler::new();
         if !rapl.available() {
             info!("RAPL not available — cpu_w will be null");
         }
         let cpu_model = read_cpu_model();
-        let mut disk_tick: u32 = 0;
-        let mut disk = collect_disk_metrics();
+        let mut disk_space_tick: u32 = 0;
+        let mut disk_space = collect_disk_metrics(&disks);
+        let mut last_io_instant = std::time::Instant::now();
 
         loop {
             sys.refresh_all();
@@ -244,11 +339,21 @@ async fn main() {
             sys.refresh_all();
             components.refresh(true);
 
-            // Refresh disk every 10 seconds (20 ticks at 500ms)
-            disk_tick += 1;
-            if disk_tick >= 20 {
-                disk_tick = 0;
-                disk = collect_disk_metrics();
+            // Disk + network throughput: refresh deltas over wall-clock window.
+            disks.refresh(true);
+            networks.refresh(true);
+            let now = std::time::Instant::now();
+            let dt_secs = now.duration_since(last_io_instant).as_secs_f64();
+            last_io_instant = now;
+            let (disk_read_bps, disk_write_bps) = aggregate_disk_io(&disks, dt_secs);
+            let (net_rx_bps, net_tx_bps) = aggregate_net_io(&networks, dt_secs);
+
+            // Refresh disk space (used/total GB) every ~10s; the Disks struct is
+            // already refreshed above, so this just re-aggregates space.
+            disk_space_tick += 1;
+            if disk_space_tick >= 20 {
+                disk_space_tick = 0;
+                disk_space = collect_disk_metrics(&disks);
             }
 
             let cpu_w = rapl.sample();
@@ -271,7 +376,13 @@ async fn main() {
                 cpu: collect_cpu_metrics(&sys),
                 gpu,
                 memory: collect_memory_metrics(&sys),
-                disk: disk.clone(),
+                disk: disk_space.clone(),
+                io: IoMetrics {
+                    disk_read_bps,
+                    disk_write_bps,
+                    net_rx_bps,
+                    net_tx_bps,
+                },
                 temps: collect_temp_metrics(&components),
                 power: PowerMetrics { cpu_w, gpu_w },
                 hardware: HardwareInfo {

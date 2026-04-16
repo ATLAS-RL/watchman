@@ -18,6 +18,9 @@ targets:
         LSUIElement: true
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        NSBonjourServices:
+          - _watchman._tcp
+        NSLocalNetworkUsageDescription: "Watchman discovers and polls GPU worker agents on the local network."
     settings:
       base:
         CODE_SIGN_IDENTITY: "-"

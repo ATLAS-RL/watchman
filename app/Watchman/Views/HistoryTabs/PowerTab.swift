@@ -3,6 +3,7 @@ import SwiftUI
 
 struct PowerTab: View {
     @ObservedObject var vm: HistoryViewModel
+    @ObservedObject private var settings = AppSettings.shared
 
     private var axis: HistoryAxis { HistoryAxis(window: vm.window) }
 
@@ -21,12 +22,22 @@ struct PowerTab: View {
         .padding(.top, 8)
     }
 
+    /// Secondary line under total kWh. Shows the dollar cost when the user
+    /// has set a `$/kWh` rate in General settings.
+    private var totalSecondary: String {
+        if settings.costPerKwh > 0 {
+            let dollars = vm.summary.totalKwh * settings.costPerKwh
+            return String(format: "$%.2f  ·  %@", dollars, vm.window.label)
+        }
+        return vm.window.label
+    }
+
     private var summaryCards: some View {
         HStack(spacing: 10) {
             SummaryCard(
                 title: "Total",
                 primary: String(format: "%.3f kWh", vm.summary.totalKwh),
-                secondary: vm.window.label
+                secondary: totalSecondary
             )
             SummaryCard(
                 title: "Mean",

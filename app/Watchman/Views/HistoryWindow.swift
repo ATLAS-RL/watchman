@@ -92,6 +92,8 @@ struct HistoryHeaderView: View {
     @ObservedObject var vm: HistoryViewModel
     let hosts: [String]
 
+    @State private var showingExport = false
+
     var body: some View {
         HStack(spacing: 12) {
             Text("History")
@@ -113,6 +115,15 @@ struct HistoryHeaderView: View {
             }
             .pickerStyle(.segmented)
             .frame(maxWidth: 280)
+            Button {
+                showingExport = true
+            } label: {
+                Label("Export", systemImage: "square.and.arrow.up")
+            }
+            .buttonStyle(.bordered)
+        }
+        .sheet(isPresented: $showingExport) {
+            ExportView(availableHosts: hosts) { showingExport = false }
         }
     }
 }

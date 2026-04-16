@@ -15,6 +15,10 @@ struct MetricSample {
     let memTotalMb: UInt64?
     let diskUsedGb: UInt64?
     let diskTotalGb: UInt64?
+    let diskReadBps: UInt64?
+    let diskWriteBps: UInt64?
+    let netRxBps: UInt64?
+    let netTxBps: UInt64?
 }
 
 enum PowerWindow: String, CaseIterable, Identifiable {

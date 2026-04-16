@@ -10,16 +10,20 @@ private let neonGray = Color(red: 0x33/255.0, green: 0x33/255.0, blue: 0x44/255.
 
 // MARK: - Color Helpers
 
+@MainActor
 private func usageColor(_ percent: Int) -> Color {
-    if percent >= 85 { return neonRed }
-    if percent >= 70 { return neonYellow }
+    let s = AppSettings.shared
+    if Double(percent) >= s.usageRedPct    { return neonRed }
+    if Double(percent) >= s.usageYellowPct { return neonYellow }
     return neonGreen
 }
 
+@MainActor
 private func tempColor(_ temp: Int) -> Color {
-    if temp >= 85 { return neonRed }
-    if temp >= 75 { return neonOrange }
-    if temp >= 60 { return neonYellow }
+    let s = AppSettings.shared
+    if Double(temp) >= s.tempRedC    { return neonRed }
+    if Double(temp) >= s.tempOrangeC { return neonOrange }
+    if Double(temp) >= s.tempYellowC { return neonYellow }
     return neonGray
 }
 
@@ -169,6 +173,48 @@ private func compactGB(usedMB: UInt64, totalMB: UInt64) -> String {
     return "\(u)/\(t)"
 }
 
+/// Format a bytes-per-second rate using the most-readable unit.
+private func formatRate(_ bps: UInt64) -> String {
+    let b = Double(bps)
+    if b >= 1_000_000_000 { return String(format: "%.1f GB/s", b / 1_000_000_000) }
+    if b >= 1_000_000     { return String(format: "%.1f MB/s", b / 1_000_000) }
+    if b >= 1_000         { return String(format: "%.0f KB/s", b / 1_000) }
+    return "\(bps) B/s"
+}
+
+/// Compact two-direction throughput row: `↓ 12 MB/s   ↑ 5 MB/s`.
+private struct IoRow: View {
+    let label: String
+    let rx: UInt64
+    let tx: UInt64
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundStyle(Theme.textSecondary)
+                .frame(width: 36, alignment: .leading)
+            HStack(spacing: 2) {
+                Image(systemName: "arrow.down")
+                    .font(.system(size: 9))
+                Text(formatRate(rx))
+                    .font(.system(size: 11, design: .monospaced))
+                    .monospacedDigit()
+            }
+            .foregroundStyle(Theme.textSecondary)
+            HStack(spacing: 2) {
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 9))
+                Text(formatRate(tx))
+                    .font(.system(size: 11, design: .monospaced))
+                    .monospacedDigit()
+            }
+            .foregroundStyle(Theme.textSecondary)
+            Spacer()
+        }
+    }
+}
+
 // MARK: - WorkerDetailView
 
 struct WorkerDetailView: View {
@@ -259,6 +305,20 @@ struct WorkerDetailView: View {
                         summary: compactGB(usedMB: m.memory.used_mb, totalMB: m.memory.total_mb)
                     )
                     .padding(.horizontal, 6)
+
+                    // I/O: disk + network throughput
+                    if let io = m.io {
+                        VStack(alignment: .leading, spacing: 5) {
+                            IoRow(label: "Disk", rx: io.disk_read_bps, tx: io.disk_write_bps)
+                            IoRow(label: "Net",  rx: io.net_rx_bps,    tx: io.net_tx_bps)
+                        }
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 6)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
+                        )
+                    }
                 }
             }
         }

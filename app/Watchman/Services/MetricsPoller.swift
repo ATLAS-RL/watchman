@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import SwiftUI
 
@@ -9,6 +10,7 @@ class MetricsPoller: ObservableObject {
     private var timer: Timer?
     private let session: URLSession
     private let settings: AppSettings
+    private var cancellables: Set<AnyCancellable> = []
     weak var alertsEngine: AlertsEngine?
 
     var overallStatus: OverallStatus {
@@ -26,18 +28,34 @@ class MetricsPoller: ObservableObject {
         config.timeoutIntervalForResource = 2
         self.session = URLSession(configuration: config)
 
-        self.workers = [
-            WorkerEntry(
-                id: "worker-0",
-                url: URL(string: "http://ivantha-worker-0.local:8085/metrics")!
-            ),
-            WorkerEntry(
-                id: "worker-1",
-                url: URL(string: "http://ivantha-worker-1.local:8085/metrics")!
-            ),
-        ]
+        self.workers = Self.buildEntries(from: settings.workers, existing: [])
+
+        settings.$workers
+            .dropFirst()
+            .sink { [weak self] configs in
+                guard let self else { return }
+                self.workers = Self.buildEntries(from: configs, existing: self.workers)
+            }
+            .store(in: &cancellables)
 
         startPolling()
+    }
+
+    /// Diff-by-id merge: preserve `WorkerEntry.state`/`metrics`/`lastUpdated`
+    /// for unchanged ids; create fresh entries for new ids; drop removed ids.
+    /// Entries for disabled workers are still created (so they show up in the
+    /// detail list as "disabled") but are skipped at poll time.
+    private static func buildEntries(from configs: [WorkerConfig], existing: [WorkerEntry]) -> [WorkerEntry] {
+        let byId = Dictionary(uniqueKeysWithValues: existing.map { ($0.id, $0) })
+        return configs.compactMap { cfg -> WorkerEntry? in
+            guard let url = cfg.url else { return nil }
+            if var prior = byId[cfg.id] {
+                prior.url = url
+                prior.enabled = cfg.enabled
+                return prior
+            }
+            return WorkerEntry(id: cfg.id, url: url, enabled: cfg.enabled)
+        }
     }
 
     private func startPolling() {
@@ -53,7 +71,7 @@ class MetricsPoller: ObservableObject {
 
     private func fetchAll() async {
         await withTaskGroup(of: (Int, WorkerMetrics?).self) { group in
-            for (index, worker) in workers.enumerated() {
+            for (index, worker) in workers.enumerated() where worker.enabled {
                 let url = worker.url
                 let session = self.session
                 group.addTask {
@@ -68,10 +86,15 @@ class MetricsPoller: ObservableObject {
             }
 
             for await (index, metrics) in group {
+                guard index < workers.count else { continue }
                 let worker = workers[index]
                 if let metrics {
-                    workers[index].update(with: metrics)
+                    workers[index].update(with: metrics, settings: settings)
                     ingestSample(metrics)
+                    SparklineHistory.shared.append(
+                        workerId: worker.id,
+                        value: settings.sparklineMetric.value(from: metrics)
+                    )
                 } else {
                     workers[index].markUnreachable()
                 }
@@ -101,7 +124,11 @@ class MetricsPoller: ObservableObject {
             memUsedMb: m.memory.used_mb,
             memTotalMb: m.memory.total_mb,
             diskUsedGb: m.disk.used_gb,
-            diskTotalGb: m.disk.total_gb
+            diskTotalGb: m.disk.total_gb,
+            diskReadBps: m.io?.disk_read_bps,
+            diskWriteBps: m.io?.disk_write_bps,
+            netRxBps: m.io?.net_rx_bps,
+            netTxBps: m.io?.net_tx_bps
         )
         Task { await MetricStore.shared.ingest(sample) }
     }

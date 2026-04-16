@@ -25,5 +25,11 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_watchman._tcp</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Watchman discovers and polls GPU worker agents on the local network.</string>
 </dict>
 </plist>

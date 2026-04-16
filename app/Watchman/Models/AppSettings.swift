@@ -2,6 +2,25 @@ import Foundation
 import ServiceManagement
 import SwiftUI
 
+/// A single worker's configuration. Persisted as an ordered list in
+/// `AppSettings.workers` so that workers can be added, removed, and renamed
+/// without rebuilding the app.
+struct WorkerConfig: Codable, Identifiable, Hashable {
+    var id: String
+    var host: String
+    var port: Int
+    var alias: String
+    var enabled: Bool
+
+    var url: URL? {
+        URL(string: "http://\(host):\(port)/metrics")
+    }
+
+    var displayAlias: String {
+        alias.isEmpty ? id : alias
+    }
+}
+
 @MainActor
 class AppSettings: ObservableObject {
     static let shared = AppSettings()
@@ -32,30 +51,124 @@ class AppSettings: ObservableObject {
     @AppStorage("diskTrigger")      var diskTrigger:      Double = 95
     @AppStorage("diskClear")        var diskClear:        Double = 90
 
-    /// Worker aliases keyed by worker id (e.g. "worker-0" → "W0")
-    @Published var workerAliases: [String: String] = [:] {
-        didSet { saveAliases() }
+    // MARK: - Display thresholds (menu bar + detail view colors)
+
+    @AppStorage("usageRedPct")    var usageRedPct:    Double = 85
+    @AppStorage("usageYellowPct") var usageYellowPct: Double = 70
+    @AppStorage("tempRedC")       var tempRedC:       Double = 85
+    @AppStorage("tempOrangeC")    var tempOrangeC:    Double = 75
+    @AppStorage("tempYellowC")    var tempYellowC:    Double = 60
+    @AppStorage("ramWarningPct")  var ramWarningPct:  Double = 90
+
+    // MARK: - Menu-bar sparkline
+
+    @AppStorage("sparklineMetric") var sparklineMetricRaw: String = SparklineMetric.gpuUsage.rawValue
+
+    var sparklineMetric: SparklineMetric {
+        get { SparklineMetric(rawValue: sparklineMetricRaw) ?? .gpuUsage }
+        set { sparklineMetricRaw = newValue.rawValue }
     }
 
-    private let aliasesKey = "workerAliases"
+    // MARK: - Cost
+
+    @AppStorage("costPerKwh") var costPerKwh: Double = 0
+
+    // MARK: - Worker list
+
+    /// Ordered list of worker configurations. Persisted as JSON under
+    /// `workerConfigs` in UserDefaults. Observing views and `MetricsPoller`
+    /// receive updates via `$workers`.
+    @Published var workers: [WorkerConfig] = [] {
+        didSet { persistWorkers() }
+    }
+
+    private let workersKey = "workerConfigs"
+    private let legacyAliasesKey = "workerAliases"
 
     init() {
-        if let data = UserDefaults.standard.data(forKey: aliasesKey),
-           let dict = try? JSONDecoder().decode([String: String].self, from: data)
-        {
-            self.workerAliases = dict
-        }
+        self.workers = Self.loadWorkers(
+            workersKey: workersKey,
+            legacyAliasesKey: legacyAliasesKey
+        )
     }
 
+    /// Alias lookup used by views that still key by worker id.
     func alias(for workerId: String) -> String {
-        let value = workerAliases[workerId]
-        return (value?.isEmpty == false) ? value! : workerId
+        workers.first(where: { $0.id == workerId })?.displayAlias ?? workerId
     }
 
-    private func saveAliases() {
-        if let data = try? JSONEncoder().encode(workerAliases) {
-            UserDefaults.standard.set(data, forKey: aliasesKey)
+    // MARK: - Worker mutations
+
+    func addWorker(_ config: WorkerConfig) {
+        var next = workers
+        // De-dupe by id; replace if present.
+        if let idx = next.firstIndex(where: { $0.id == config.id }) {
+            next[idx] = config
+        } else {
+            next.append(config)
         }
+        workers = next
+    }
+
+    func removeWorker(id: String) {
+        workers.removeAll { $0.id == id }
+    }
+
+    func moveWorkers(from source: IndexSet, to destination: Int) {
+        var next = workers
+        next.move(fromOffsets: source, toOffset: destination)
+        workers = next
+    }
+
+    func updateWorker(_ config: WorkerConfig) {
+        guard let idx = workers.firstIndex(where: { $0.id == config.id }) else { return }
+        var next = workers
+        next[idx] = config
+        workers = next
+    }
+
+    // MARK: - Persistence
+
+    private static func loadWorkers(workersKey: String, legacyAliasesKey: String) -> [WorkerConfig] {
+        let defaults = UserDefaults.standard
+        if let data = defaults.data(forKey: workersKey),
+           let list = try? JSONDecoder().decode([WorkerConfig].self, from: data),
+           !list.isEmpty
+        {
+            return list
+        }
+
+        // First launch, or a clean uninstall/reinstall. Seed the list from the
+        // previous two hardcoded workers, migrating any legacy aliases stored
+        // under `workerAliases` so the transition is invisible.
+        var aliasMap: [String: String] = [:]
+        if let aliasData = defaults.data(forKey: legacyAliasesKey),
+           let dict = try? JSONDecoder().decode([String: String].self, from: aliasData)
+        {
+            aliasMap = dict
+        }
+
+        return [
+            WorkerConfig(
+                id: "worker-0",
+                host: "ivantha-worker-0.local",
+                port: 8085,
+                alias: aliasMap["worker-0"] ?? "",
+                enabled: true
+            ),
+            WorkerConfig(
+                id: "worker-1",
+                host: "ivantha-worker-1.local",
+                port: 8085,
+                alias: aliasMap["worker-1"] ?? "",
+                enabled: true
+            ),
+        ]
+    }
+
+    private func persistWorkers() {
+        guard let data = try? JSONEncoder().encode(workers) else { return }
+        UserDefaults.standard.set(data, forKey: workersKey)
     }
 
     private func updateLaunchAtLogin() {
@@ -67,6 +180,56 @@ class AppSettings: ObservableObject {
             }
         } catch {
             print("Launch at login error: \(error)")
+        }
+    }
+}
+
+/// Metric plotted in the menu-bar sparkline.
+enum SparklineMetric: String, CaseIterable, Identifiable {
+    case off
+    case gpuUsage
+    case gpuTemp
+    case cpuUsage
+    case cpuTemp
+    case ramPct
+    case vramPct
+    case diskReadBps
+    case netRxBps
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .off:         return "Off"
+        case .gpuUsage:    return "GPU usage"
+        case .gpuTemp:     return "GPU temperature"
+        case .cpuUsage:    return "CPU usage"
+        case .cpuTemp:     return "CPU temperature"
+        case .ramPct:      return "RAM usage"
+        case .vramPct:     return "VRAM usage"
+        case .diskReadBps: return "Disk read"
+        case .netRxBps:    return "Network receive"
+        }
+    }
+
+    /// Extract the sample value from a `WorkerMetrics` payload. Returns `nil`
+    /// when the metric isn't available on this worker (e.g. GPU metrics on a
+    /// CPU-only host).
+    func value(from m: WorkerMetrics) -> Double? {
+        switch self {
+        case .off:         return nil
+        case .gpuUsage:    return m.gpu.map { Double($0.usage_percent) }
+        case .gpuTemp:     return m.gpu.map { Double($0.temp_c) }
+        case .cpuUsage:    return Double(m.cpu.usage_percent)
+        case .cpuTemp:     return m.temps.cpu_temp_c.map(Double.init)
+        case .ramPct:
+            guard m.memory.total_mb > 0 else { return nil }
+            return 100.0 * Double(m.memory.used_mb) / Double(m.memory.total_mb)
+        case .vramPct:
+            guard let gpu = m.gpu, gpu.vram_total_mb > 0 else { return nil }
+            return 100.0 * Double(gpu.vram_used_mb) / Double(gpu.vram_total_mb)
+        case .diskReadBps: return m.io.map { Double($0.disk_read_bps) }
+        case .netRxBps:    return m.io.map { Double($0.net_rx_bps) }
         }
     }
 }

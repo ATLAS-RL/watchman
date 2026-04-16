@@ -97,7 +97,7 @@ struct MenuBarView: View {
                 ForEach(poller.workers) { worker in
                     WorkerDetailView(
                         worker: worker,
-                        alias: settings.workerAliases[worker.id]
+                        alias: settings.alias(for: worker.id)
                     )
                 }
             }

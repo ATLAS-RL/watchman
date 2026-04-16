@@ -66,6 +66,10 @@ actor MetricStore {
         bindOptionalUInt64(stmt, 12, sample.memTotalMb)
         bindOptionalUInt64(stmt, 13, sample.diskUsedGb)
         bindOptionalUInt64(stmt, 14, sample.diskTotalGb)
+        bindOptionalUInt64(stmt, 15, sample.diskReadBps)
+        bindOptionalUInt64(stmt, 16, sample.diskWriteBps)
+        bindOptionalUInt64(stmt, 17, sample.netRxBps)
+        bindOptionalUInt64(stmt, 18, sample.netTxBps)
         sqlite3_step(stmt)
     }
 
@@ -276,6 +280,148 @@ actor MetricStore {
         }
     }
 
+    // MARK: - Raw CSV export
+
+    /// Stream every row in the selected range to `destination` as CSV. The
+    /// file is written through a `FileHandle` so a 90-day export (millions
+    /// of rows) doesn't materialise in memory. Returns the number of data
+    /// rows written (excluding the header).
+    func exportRawCsv(
+        workers: [String]?,
+        from: Date,
+        to: Date,
+        destination: URL
+    ) throws -> Int {
+        guard let db = db else {
+            throw MetricsExporter.Failure.storeUnavailable
+        }
+
+        let fm = FileManager.default
+        if fm.fileExists(atPath: destination.path) {
+            try fm.removeItem(at: destination)
+        }
+        guard fm.createFile(atPath: destination.path, contents: nil) else {
+            throw MetricsExporter.Failure.writeFailed("could not create file")
+        }
+        let handle = try FileHandle(forWritingTo: destination)
+        defer { try? handle.close() }
+
+        // Header
+        let header = "timestamp,hostname,cpu_w,gpu_w,cpu_pct,gpu_pct,gpu_temp_c,cpu_temp_c,vram_used_mb,vram_total_mb,mem_used_mb,mem_total_mb,disk_used_gb,disk_total_gb,disk_read_bps,disk_write_bps,net_rx_bps,net_tx_bps\n"
+        try handle.write(contentsOf: Data(header.utf8))
+
+        // Build the SELECT with optional IN (...) filter for hostnames.
+        var sql = """
+        SELECT timestamp, hostname, cpu_w, gpu_w, cpu_pct, gpu_pct,
+               gpu_temp_c, cpu_temp_c, vram_used_mb, vram_total_mb,
+               mem_used_mb, mem_total_mb, disk_used_gb, disk_total_gb,
+               disk_read_bps, disk_write_bps, net_rx_bps, net_tx_bps
+        FROM metric_samples
+        WHERE timestamp BETWEEN ? AND ?
+        """
+        if let workers, !workers.isEmpty {
+            let placeholders = Array(repeating: "?", count: workers.count).joined(separator: ",")
+            sql += " AND hostname IN (\(placeholders))"
+        }
+        sql += " ORDER BY hostname, timestamp;"
+
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
+            throw MetricsExporter.Failure.writeFailed("prepare failed")
+        }
+        defer { sqlite3_finalize(stmt) }
+
+        sqlite3_bind_int64(stmt, 1, Int64(from.timeIntervalSince1970))
+        sqlite3_bind_int64(stmt, 2, Int64(to.timeIntervalSince1970))
+        if let workers {
+            for (i, w) in workers.enumerated() {
+                w.withCString { ptr in
+                    sqlite3_bind_text(stmt, Int32(3 + i), ptr, -1, Self.SQLITE_TRANSIENT)
+                }
+            }
+        }
+
+        // 16 KiB batch buffer: flushing after each row shows up as a
+        // noticeable syscall cost on big exports.
+        var buffer = Data()
+        buffer.reserveCapacity(16 * 1024)
+        var rowCount = 0
+
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime]
+
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            let ts = sqlite3_column_int64(stmt, 0)
+            let date = Date(timeIntervalSince1970: TimeInterval(ts))
+            let hostPtr = sqlite3_column_text(stmt, 1)
+            let host = hostPtr.map { String(cString: $0) } ?? ""
+
+            var fields: [String] = []
+            fields.reserveCapacity(18)
+            fields.append(iso.string(from: date))
+            fields.append(csvEscape(host))
+            // cpu_w, gpu_w (nullable REAL)
+            fields.append(nullableRealColumn(stmt, 2))
+            fields.append(nullableRealColumn(stmt, 3))
+            // cpu_pct, gpu_pct (non-null REAL)
+            fields.append(realColumn(stmt, 4))
+            fields.append(realColumn(stmt, 5))
+            // gpu_temp_c, cpu_temp_c (nullable REAL)
+            fields.append(nullableRealColumn(stmt, 6))
+            fields.append(nullableRealColumn(stmt, 7))
+            // vram_used_mb .. net_tx_bps (nullable INTEGER)
+            for col: Int32 in 8...17 {
+                fields.append(nullableIntColumn(stmt, col))
+            }
+
+            let line = fields.joined(separator: ",") + "\n"
+            buffer.append(contentsOf: line.utf8)
+            rowCount += 1
+
+            if buffer.count >= 16 * 1024 {
+                try handle.write(contentsOf: buffer)
+                buffer.removeAll(keepingCapacity: true)
+            }
+        }
+
+        if !buffer.isEmpty {
+            try handle.write(contentsOf: buffer)
+        }
+
+        return rowCount
+    }
+
+    private func realColumn(_ stmt: OpaquePointer?, _ idx: Int32) -> String {
+        if sqlite3_column_type(stmt, idx) == SQLITE_NULL { return "" }
+        let v = sqlite3_column_double(stmt, idx)
+        return formatReal(v)
+    }
+
+    private func nullableRealColumn(_ stmt: OpaquePointer?, _ idx: Int32) -> String {
+        if sqlite3_column_type(stmt, idx) == SQLITE_NULL { return "" }
+        return formatReal(sqlite3_column_double(stmt, idx))
+    }
+
+    private func nullableIntColumn(_ stmt: OpaquePointer?, _ idx: Int32) -> String {
+        if sqlite3_column_type(stmt, idx) == SQLITE_NULL { return "" }
+        return String(sqlite3_column_int64(stmt, idx))
+    }
+
+    private func formatReal(_ v: Double) -> String {
+        if v.rounded() == v && abs(v) < 1e15 {
+            return String(Int64(v))
+        }
+        return String(format: "%.3f", v)
+    }
+
+    /// Quote a CSV field if it contains commas, quotes, or newlines.
+    private func csvEscape(_ s: String) -> String {
+        if s.contains(",") || s.contains("\"") || s.contains("\n") {
+            return "\"\(s.replacingOccurrences(of: "\"", with: "\"\""))\""
+        }
+        return s
+    }
+
     // MARK: - Aggregate helper
 
     /// Shared runner for the three gauge aggregates. Binds the bucket format,
@@ -328,16 +474,17 @@ actor MetricStore {
         // `power_samples` table is still around — early builds of this
         // feature could leave the DB in that state.
         let version = readUserVersion()
-        if version < 2 || tableExists("power_samples") {
-            migrateToV2(from: version)
+        if version < 3 || tableExists("power_samples") {
+            migrate(from: version)
         }
 
         let insertSQL = """
         INSERT OR REPLACE INTO metric_samples
             (timestamp, hostname, cpu_w, gpu_w, cpu_pct, gpu_pct,
              gpu_temp_c, cpu_temp_c, vram_used_mb, vram_total_mb,
-             mem_used_mb, mem_total_mb, disk_used_gb, disk_total_gb)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+             mem_used_mb, mem_total_mb, disk_used_gb, disk_total_gb,
+             disk_read_bps, disk_write_bps, net_rx_bps, net_tx_bps)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """
         sqlite3_prepare_v2(db, insertSQL, -1, &insertStmt, nil)
     }
@@ -352,11 +499,12 @@ actor MetricStore {
         return sqlite3_step(stmt) == SQLITE_ROW ? Int(sqlite3_column_int(stmt, 0)) : 0
     }
 
-    /// Brings the DB to v2 regardless of the previous state. Driven by table
-    /// presence rather than `user_version` alone, so we can recover from an
-    /// earlier buggy migration that created an empty `metric_samples` next
-    /// to the legacy `power_samples` table without merging them.
-    private func migrateToV2(from version: Int) {
+    /// Brings the DB to the current version (v3) regardless of the previous
+    /// state. Driven by table presence rather than `user_version` alone, so
+    /// we can recover from an earlier buggy migration that created an empty
+    /// `metric_samples` next to the legacy `power_samples` table without
+    /// merging them.
+    private func migrate(from version: Int) {
         runRaw("BEGIN;")
         defer { runRaw("COMMIT;") }
 
@@ -382,20 +530,24 @@ actor MetricStore {
             // Fresh install.
             runRaw("""
             CREATE TABLE metric_samples (
-                timestamp     INTEGER NOT NULL,
-                hostname      TEXT    NOT NULL,
-                cpu_w         REAL,
-                gpu_w         REAL,
-                cpu_pct       REAL    NOT NULL,
-                gpu_pct       REAL    NOT NULL,
-                gpu_temp_c    REAL,
-                cpu_temp_c    REAL,
-                vram_used_mb  INTEGER,
-                vram_total_mb INTEGER,
-                mem_used_mb   INTEGER,
-                mem_total_mb  INTEGER,
-                disk_used_gb  INTEGER,
-                disk_total_gb INTEGER,
+                timestamp      INTEGER NOT NULL,
+                hostname       TEXT    NOT NULL,
+                cpu_w          REAL,
+                gpu_w          REAL,
+                cpu_pct        REAL    NOT NULL,
+                gpu_pct        REAL    NOT NULL,
+                gpu_temp_c     REAL,
+                cpu_temp_c     REAL,
+                vram_used_mb   INTEGER,
+                vram_total_mb  INTEGER,
+                mem_used_mb    INTEGER,
+                mem_total_mb   INTEGER,
+                disk_used_gb   INTEGER,
+                disk_total_gb  INTEGER,
+                disk_read_bps  INTEGER,
+                disk_write_bps INTEGER,
+                net_rx_bps     INTEGER,
+                net_tx_bps     INTEGER,
                 PRIMARY KEY (hostname, timestamp)
             );
             """)
@@ -404,21 +556,25 @@ actor MetricStore {
         // ADD COLUMN on an already-present column is a no-op here because
         // runRaw swallows the error. Safe to call on every migration path.
         for col in [
-            "gpu_temp_c    REAL",
-            "cpu_temp_c    REAL",
-            "vram_used_mb  INTEGER",
-            "vram_total_mb INTEGER",
-            "mem_used_mb   INTEGER",
-            "mem_total_mb  INTEGER",
-            "disk_used_gb  INTEGER",
-            "disk_total_gb INTEGER",
+            "gpu_temp_c     REAL",
+            "cpu_temp_c     REAL",
+            "vram_used_mb   INTEGER",
+            "vram_total_mb  INTEGER",
+            "mem_used_mb    INTEGER",
+            "mem_total_mb   INTEGER",
+            "disk_used_gb   INTEGER",
+            "disk_total_gb  INTEGER",
+            "disk_read_bps  INTEGER",
+            "disk_write_bps INTEGER",
+            "net_rx_bps     INTEGER",
+            "net_tx_bps     INTEGER",
         ] {
             runRaw("ALTER TABLE metric_samples ADD COLUMN \(col);")
         }
 
         runRaw("DROP INDEX IF EXISTS idx_host_ts;")
         runRaw("CREATE INDEX IF NOT EXISTS idx_host_ts ON metric_samples(hostname, timestamp);")
-        runRaw("PRAGMA user_version = 2;")
+        runRaw("PRAGMA user_version = 3;")
     }
 
     private func tableExists(_ name: String) -> Bool {

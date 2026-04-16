@@ -8,6 +8,7 @@ struct WorkerMetrics: Codable, Identifiable {
     let gpu: GpuMetrics?
     let memory: MemoryMetrics
     let disk: DiskMetrics
+    let io: IoMetrics?
     let temps: TempMetrics
     let power: PowerMetrics?
     let hardware: HardwareInfo?
@@ -35,6 +36,13 @@ struct WorkerMetrics: Codable, Identifiable {
     struct DiskMetrics: Codable {
         let used_gb: UInt64
         let total_gb: UInt64
+    }
+
+    struct IoMetrics: Codable {
+        let disk_read_bps: UInt64
+        let disk_write_bps: UInt64
+        let net_rx_bps: UInt64
+        let net_tx_bps: UInt64
     }
 
     struct TempMetrics: Codable {
@@ -81,7 +89,8 @@ import SwiftUI
 
 struct WorkerEntry: Identifiable {
     let id: String
-    let url: URL
+    var url: URL
+    var enabled: Bool = true
     var metrics: WorkerMetrics?
     var state: WorkerState = .unreachable
     var lastUpdated: Date?
@@ -121,9 +130,10 @@ struct WorkerEntry: Identifiable {
         return temps.max()
     }
 
-    mutating func update(with metrics: WorkerMetrics) {
+    @MainActor
+    mutating func update(with metrics: WorkerMetrics, settings: AppSettings) {
         self.metrics = metrics
-        self.state = Self.evaluateState(metrics)
+        self.state = Self.evaluateState(metrics, settings: settings)
         self.lastUpdated = Date()
     }
 
@@ -133,15 +143,16 @@ struct WorkerEntry: Identifiable {
         // lastUpdated intentionally kept for staleness display
     }
 
-    private static func evaluateState(_ m: WorkerMetrics) -> WorkerState {
+    @MainActor
+    private static func evaluateState(_ m: WorkerMetrics, settings: AppSettings) -> WorkerState {
         if let gpu = m.gpu {
-            if gpu.temp_c > 85 { return .critical }
-            if gpu.temp_c > 75 { return .warning }
+            if Double(gpu.temp_c) >= settings.tempRedC    { return .critical }
+            if Double(gpu.temp_c) >= settings.tempOrangeC { return .warning }
         }
         let ramPercent = m.memory.total_mb > 0
-            ? Double(m.memory.used_mb) / Double(m.memory.total_mb)
+            ? 100.0 * Double(m.memory.used_mb) / Double(m.memory.total_mb)
             : 0
-        if ramPercent > 0.90 { return .warning }
+        if ramPercent >= settings.ramWarningPct { return .warning }
         return .ok
     }
 }
