@@ -16,10 +16,10 @@ enum PowerWindow: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .hour: return "Hour"
-        case .day: return "Day"
-        case .week: return "Week"
-        case .month: return "Month"
+        case .hour: return "1 hour"
+        case .day: return "24 hours"
+        case .week: return "7 days"
+        case .month: return "30 days"
         }
     }
 

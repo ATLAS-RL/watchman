@@ -87,6 +87,11 @@ struct PowerHistoryView: View {
         }
     }
 
+    private var xDomain: ClosedRange<Date> {
+        let now = Date()
+        return now.addingTimeInterval(-vm.window.lookback)...now
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
@@ -178,6 +183,7 @@ struct PowerHistoryView: View {
                         "GPU": Color(red: 0xFF/255.0, green: 0x7A/255.0, blue: 0x00/255.0),
                     ])
                     .chartYAxisLabel("W")
+                    .chartXScale(domain: xDomain)
                     .chartXAxis {
                         AxisMarks(values: .stride(by: xStride.component, count: xStride.count)) { _ in
                             AxisGridLine()

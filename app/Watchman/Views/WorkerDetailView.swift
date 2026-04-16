@@ -58,9 +58,9 @@ private struct MetricRow: View {
                     .font(.system(size: 11, design: .monospaced))
                     .monospacedDigit()
                     .foregroundStyle(tempColor(temp))
-                    .frame(width: 40, alignment: .trailing)
+                    .frame(width: 48, alignment: .trailing)
             } else {
-                Color.clear.frame(width: 40)
+                Color.clear.frame(width: 48)
             }
         }
     }
@@ -119,7 +119,7 @@ private struct PowerRow: View {
                     .fill(Theme.trackGray)
                     .frame(height: 6)
             }
-            Color.clear.frame(width: 40)
+            Color.clear.frame(width: 48)
         }
     }
 }
@@ -128,8 +128,10 @@ private struct PowerRow: View {
 
 private struct CapacityRow: View {
     let label: String
-    let used: String
-    let total: String
+    let percent: Int
+    let summary: String  // e.g. "16/64"; unit implied by label (RAM/VRAM → GB)
+
+    private var barColor: Color { usageColor(percent) }
 
     var body: some View {
         HStack(spacing: 6) {
@@ -137,12 +139,34 @@ private struct CapacityRow: View {
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .foregroundStyle(Theme.textSecondary)
                 .frame(width: 36, alignment: .leading)
-            Text("\(used)/\(total)")
+            Text("\(percent)%")
+                .font(.system(size: 11, design: .monospaced))
+                .monospacedDigit()
+                .foregroundStyle(barColor)
+                .frame(width: 48, alignment: .trailing)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Theme.trackGray)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(barColor)
+                        .frame(width: geo.size.width * CGFloat(min(max(percent, 0), 100)) / 100.0)
+                }
+            }
+            .frame(height: 6)
+            Text(summary)
                 .font(.system(size: 11, design: .monospaced))
                 .monospacedDigit()
                 .foregroundStyle(Theme.textSecondary)
+                .frame(width: 48, alignment: .trailing)
         }
     }
+}
+
+private func compactGB(usedMB: UInt64, totalMB: UInt64) -> String {
+    let u = Int((Double(usedMB) / 1024.0).rounded())
+    let t = Int((Double(totalMB) / 1024.0).rounded())
+    return "\(u)/\(t)"
 }
 
 // MARK: - WorkerDetailView
@@ -180,7 +204,11 @@ struct WorkerDetailView: View {
                     percent: Int(m.cpu.usage_percent),
                     temp: m.temps.cpu_temp_c.map { Int($0) }
                 )
-                CapacityRow(label: "RAM", used: m.memory.usedFormatted, total: m.memory.totalFormatted)
+                CapacityRow(
+                    label: "RAM",
+                    percent: Int((m.memory.fraction * 100).rounded()),
+                    summary: compactGB(usedMB: m.memory.used_mb, totalMB: m.memory.total_mb)
+                )
                 PowerRow(
                     label: "CPU W",
                     watts: m.power?.cpu_w,
@@ -190,7 +218,11 @@ struct WorkerDetailView: View {
                 // GPU block (usage + temp bar, VRAM capacity, power) — if present
                 if let gpu = m.gpu {
                     MetricRow(label: "GPU", percent: Int(gpu.usage_percent), temp: Int(gpu.temp_c))
-                    CapacityRow(label: "VRAM", used: gpu.vramUsedFormatted, total: gpu.vramTotalFormatted)
+                    CapacityRow(
+                        label: "VRAM",
+                        percent: Int((gpu.vramFraction * 100).rounded()),
+                        summary: compactGB(usedMB: gpu.vram_used_mb, totalMB: gpu.vram_total_mb)
+                    )
                     PowerRow(
                         label: "GPU W",
                         watts: m.power?.gpu_w,
