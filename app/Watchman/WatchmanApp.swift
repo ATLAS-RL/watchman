@@ -27,7 +27,7 @@ struct WatchmanApp: App {
         .menuBarExtraStyle(.window)
 
         Settings {
-            SettingsView(settings: settings, workers: poller.workers)
+            SettingsView(settings: settings, alerts: alerts, workers: poller.workers)
                 .preferredColorScheme(.dark)
         }
 

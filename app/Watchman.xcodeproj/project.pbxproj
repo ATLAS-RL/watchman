@@ -26,6 +26,7 @@
 		E1F2A3B4C5D60005E1F2A3B4 /* DiskTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E2D3C4B5A60005F1E2D3C4 /* DiskTab.swift */; };
 		B2A3C4D5E6F70001B2A3C4D5 /* AlertConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2B3A4D5E6F70001C2B3A4D5 /* AlertConfig.swift */; };
 		B2A3C4D5E6F70002B2A3C4D5 /* AlertsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2B3A4D5E6F70002C2B3A4D5 /* AlertsEngine.swift */; };
+		B2A3C4D5E6F70003B2A3C4D5 /* AlertsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2B3A4D5E6F70003C2B3A4D5 /* AlertsTab.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -50,6 +51,7 @@
 		F1E2D3C4B5A60005F1E2D3C4 /* DiskTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiskTab.swift; sourceTree = "<group>"; };
 		C2B3A4D5E6F70001C2B3A4D5 /* AlertConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertConfig.swift; sourceTree = "<group>"; };
 		C2B3A4D5E6F70002C2B3A4D5 /* AlertsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsEngine.swift; sourceTree = "<group>"; };
+		C2B3A4D5E6F70003C2B3A4D5 /* AlertsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsTab.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -69,6 +71,7 @@
 			isa = PBXGroup;
 			children = (
 				A1B2C3D4E5F601A1B2C3D4A1 /* HistoryTabs */,
+				C2B3A4D5E6F70003C2B3A4D5 /* AlertsTab.swift */,
 				E17D66EE10FFBA2F9DE82A65 /* MenuBarView.swift */,
 				A4B5C6D7E8F90003A4B5C6D7 /* HistoryWindow.swift */,
 				E5D4C3B2F6071829E5D4C3B2 /* SettingsView.swift */,
@@ -197,6 +200,7 @@
 				E1F2A3B4C5D60005E1F2A3B4 /* DiskTab.swift in Sources */,
 				B2A3C4D5E6F70001B2A3C4D5 /* AlertConfig.swift in Sources */,
 				B2A3C4D5E6F70002B2A3C4D5 /* AlertsEngine.swift in Sources */,
+				B2A3C4D5E6F70003B2A3C4D5 /* AlertsTab.swift in Sources */,
 				B2C3D4E5F6071829B2C3D4E5 /* SettingsView.swift in Sources */,
 				C3D4E5F607182930C3D4E5F6 /* Theme.swift in Sources */,
 				0CEC294578C20AA504EC0DB6 /* WatchmanApp.swift in Sources */,

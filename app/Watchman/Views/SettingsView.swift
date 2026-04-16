@@ -2,68 +2,85 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
+    @ObservedObject var alerts: AlertsEngine
+    let workers: [WorkerEntry]
+
+    var body: some View {
+        TabView {
+            GeneralTab(settings: settings)
+                .tabItem { Label("General", systemImage: "gearshape") }
+            WorkersTab(settings: settings, workers: workers)
+                .tabItem { Label("Workers", systemImage: "server.rack") }
+            AlertsTab(settings: settings, alerts: alerts)
+                .tabItem { Label("Alerts", systemImage: "bell.badge") }
+        }
+        .frame(width: 480, height: 520)
+        .background(Theme.panelBg)
+        .preferredColorScheme(.dark)
+    }
+}
+
+// MARK: - General
+
+private struct GeneralTab: View {
+    @ObservedObject var settings: AppSettings
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Launch at login", isOn: $settings.launchAtLogin)
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
+// MARK: - Workers (aliases)
+
+private struct WorkersTab: View {
+    @ObservedObject var settings: AppSettings
     let workers: [WorkerEntry]
 
     @State private var draftAliases: [String: String] = [:]
     @State private var hasChanges = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Settings")
-                .font(.headline)
-                .foregroundStyle(Theme.textPrimary)
-
-            // General
-            Toggle("Launch at login", isOn: $settings.launchAtLogin)
-                .foregroundStyle(Theme.textPrimary)
-
-            // Worker Aliases
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Worker Aliases")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(Theme.accent)
-                Text("Customize names shown in the menu bar.")
+        Form {
+            Section(
+                header: Text("Worker aliases"),
+                footer: Text("Customize names shown in the menu bar.")
                     .font(.caption)
                     .foregroundStyle(Theme.textSecondary)
-
+            ) {
                 ForEach(workers) { worker in
                     HStack {
                         Text(worker.id)
                             .font(.caption)
                             .foregroundStyle(Theme.textSecondary)
                             .frame(width: 80, alignment: .leading)
-                        TextField(
-                            worker.id,
-                            text: draftBinding(for: worker.id)
-                        )
-                        .textFieldStyle(.roundedBorder)
+                        TextField(worker.id, text: draftBinding(for: worker.id))
+                            .textFieldStyle(.roundedBorder)
                     }
                 }
             }
 
-            Spacer()
-
-            HStack {
-                Spacer()
-                Button("Save") {
-                    for (id, alias) in draftAliases {
-                        settings.workerAliases[id] = alias
+            Section {
+                HStack {
+                    Spacer()
+                    Button("Save") {
+                        for (id, alias) in draftAliases {
+                            settings.workerAliases[id] = alias
+                        }
+                        hasChanges = false
                     }
-                    hasChanges = false
+                    .buttonStyle(.borderedProminent)
+                    .tint(Theme.accent)
+                    .disabled(!hasChanges)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(Theme.accent)
-                .disabled(!hasChanges)
             }
         }
-        .padding(20)
-        .frame(width: 360, height: 280)
-        .fixedSize()
-        .background(Theme.panelBg)
-        .preferredColorScheme(.dark)
-        .onAppear {
-            draftAliases = settings.workerAliases
-        }
+        .formStyle(.grouped)
+        .onAppear { draftAliases = settings.workerAliases }
     }
 
     private func draftBinding(for id: String) -> Binding<String> {
