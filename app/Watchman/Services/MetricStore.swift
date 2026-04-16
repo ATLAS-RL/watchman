@@ -194,6 +194,126 @@ actor MetricStore {
         )
     }
 
+    // MARK: - Gauge aggregates
+
+    func gpuAggregate(hostname: String?, window: PowerWindow) -> [GpuAggregate] {
+        let sql = """
+        SELECT strftime(?, timestamp, 'unixepoch', 'localtime') AS bucket,
+               MIN(timestamp) AS bucket_ts,
+               AVG(gpu_pct)    AS mean_gpu_pct,
+               MAX(gpu_pct)    AS peak_gpu_pct,
+               AVG(gpu_temp_c) AS mean_gpu_temp,
+               MAX(gpu_temp_c) AS peak_gpu_temp,
+               AVG(CASE WHEN vram_total_mb > 0 THEN 100.0 * vram_used_mb / vram_total_mb END) AS mean_vram_pct,
+               MAX(CASE WHEN vram_total_mb > 0 THEN 100.0 * vram_used_mb / vram_total_mb END) AS peak_vram_pct
+        FROM metric_samples
+        WHERE timestamp >= ? \(hostFilter(hostname))
+        GROUP BY bucket
+        ORDER BY bucket_ts ASC;
+        """
+        return runAggregate(sql: sql, hostname: hostname, window: window) { stmt in
+            GpuAggregate(
+                bucketStart: Date(timeIntervalSince1970: TimeInterval(sqlite3_column_int64(stmt, 1))),
+                meanGpuPct: sqlite3_column_double(stmt, 2),
+                peakGpuPct: sqlite3_column_double(stmt, 3),
+                meanGpuTemp: sqlite3_column_double(stmt, 4),
+                peakGpuTemp: sqlite3_column_double(stmt, 5),
+                meanVramPct: sqlite3_column_double(stmt, 6),
+                peakVramPct: sqlite3_column_double(stmt, 7)
+            )
+        }
+    }
+
+    func systemAggregate(hostname: String?, window: PowerWindow) -> [SystemAggregate] {
+        let sql = """
+        SELECT strftime(?, timestamp, 'unixepoch', 'localtime') AS bucket,
+               MIN(timestamp) AS bucket_ts,
+               AVG(cpu_pct) AS mean_cpu_pct,
+               MAX(cpu_pct) AS peak_cpu_pct,
+               AVG(CASE WHEN mem_total_mb > 0 THEN 100.0 * mem_used_mb / mem_total_mb END) AS mean_ram_pct,
+               MAX(CASE WHEN mem_total_mb > 0 THEN 100.0 * mem_used_mb / mem_total_mb END) AS peak_ram_pct,
+               AVG(cpu_temp_c) AS mean_cpu_temp,
+               MAX(cpu_temp_c) AS peak_cpu_temp
+        FROM metric_samples
+        WHERE timestamp >= ? \(hostFilter(hostname))
+        GROUP BY bucket
+        ORDER BY bucket_ts ASC;
+        """
+        return runAggregate(sql: sql, hostname: hostname, window: window) { stmt in
+            SystemAggregate(
+                bucketStart: Date(timeIntervalSince1970: TimeInterval(sqlite3_column_int64(stmt, 1))),
+                meanCpuPct: sqlite3_column_double(stmt, 2),
+                peakCpuPct: sqlite3_column_double(stmt, 3),
+                meanRamPct: sqlite3_column_double(stmt, 4),
+                peakRamPct: sqlite3_column_double(stmt, 5),
+                meanCpuTemp: sqlite3_column_double(stmt, 6),
+                peakCpuTemp: sqlite3_column_double(stmt, 7)
+            )
+        }
+    }
+
+    func diskAggregate(hostname: String?, window: PowerWindow) -> [DiskAggregate] {
+        let sql = """
+        SELECT strftime(?, timestamp, 'unixepoch', 'localtime') AS bucket,
+               MIN(timestamp) AS bucket_ts,
+               AVG(CASE WHEN disk_total_gb > 0 THEN 100.0 * disk_used_gb / disk_total_gb END) AS mean_disk_pct,
+               MAX(CASE WHEN disk_total_gb > 0 THEN 100.0 * disk_used_gb / disk_total_gb END) AS peak_disk_pct,
+               AVG(disk_used_gb)  AS mean_used_gb,
+               AVG(disk_total_gb) AS mean_total_gb
+        FROM metric_samples
+        WHERE timestamp >= ? \(hostFilter(hostname))
+        GROUP BY bucket
+        ORDER BY bucket_ts ASC;
+        """
+        return runAggregate(sql: sql, hostname: hostname, window: window) { stmt in
+            DiskAggregate(
+                bucketStart: Date(timeIntervalSince1970: TimeInterval(sqlite3_column_int64(stmt, 1))),
+                meanDiskPct: sqlite3_column_double(stmt, 2),
+                peakDiskPct: sqlite3_column_double(stmt, 3),
+                meanUsedGb: sqlite3_column_double(stmt, 4),
+                meanTotalGb: sqlite3_column_double(stmt, 5)
+            )
+        }
+    }
+
+    // MARK: - Aggregate helper
+
+    /// Shared runner for the three gauge aggregates. Binds the bucket format,
+    /// timestamp lower bound, and optional hostname — all gauge queries share
+    /// this exact binding order.
+    private func runAggregate<T>(
+        sql: String,
+        hostname: String?,
+        window: PowerWindow,
+        decode: (OpaquePointer?) -> T
+    ) -> [T] {
+        guard let db = db else { return [] }
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(stmt) }
+
+        let sinceTs = Int64(Date().addingTimeInterval(-window.lookback).timeIntervalSince1970)
+        window.bucketFormat.withCString { ptr in
+            sqlite3_bind_text(stmt, 1, ptr, -1, Self.SQLITE_TRANSIENT)
+        }
+        sqlite3_bind_int64(stmt, 2, sinceTs)
+        if let host = hostname {
+            host.withCString { ptr in
+                sqlite3_bind_text(stmt, 3, ptr, -1, Self.SQLITE_TRANSIENT)
+            }
+        }
+
+        var rows: [T] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            rows.append(decode(stmt))
+        }
+        return rows
+    }
+
+    private func hostFilter(_ hostname: String?) -> String {
+        hostname == nil ? "" : "AND hostname = ?"
+    }
+
     // MARK: - Private
 
     private func openAndMigrate() {

@@ -82,3 +82,37 @@ struct PowerSummary {
         totalKwh: 0, meanW: 0, peakW: 0, minW: 0, idleKwh: 0, activeKwh: 0
     )
 }
+
+struct GpuAggregate: Identifiable {
+    let bucketStart: Date
+    let meanGpuPct: Double
+    let peakGpuPct: Double
+    let meanGpuTemp: Double
+    let peakGpuTemp: Double
+    let meanVramPct: Double
+    let peakVramPct: Double
+
+    var id: Date { bucketStart }
+}
+
+struct SystemAggregate: Identifiable {
+    let bucketStart: Date
+    let meanCpuPct: Double
+    let peakCpuPct: Double
+    let meanRamPct: Double
+    let peakRamPct: Double
+    let meanCpuTemp: Double
+    let peakCpuTemp: Double
+
+    var id: Date { bucketStart }
+}
+
+struct DiskAggregate: Identifiable {
+    let bucketStart: Date
+    let meanDiskPct: Double
+    let peakDiskPct: Double
+    let meanUsedGb: Double
+    let meanTotalGb: Double
+
+    var id: Date { bucketStart }
+}
