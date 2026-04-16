@@ -69,6 +69,24 @@ struct PowerHistoryView: View {
     @ObservedObject var vm: PowerHistoryViewModel
     let hosts: [String]
 
+    private var xStride: (component: Calendar.Component, count: Int) {
+        switch vm.window {
+        case .hour:  return (.minute, 10)
+        case .day:   return (.hour, 3)
+        case .week:  return (.day, 1)
+        case .month: return (.day, 5)
+        }
+    }
+
+    private var xFormat: Date.FormatStyle {
+        switch vm.window {
+        case .hour:  return .dateTime.hour().minute()
+        case .day:   return .dateTime.hour()
+        case .week:  return .dateTime.weekday(.abbreviated)
+        case .month: return .dateTime.day().month(.abbreviated)
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
@@ -160,6 +178,13 @@ struct PowerHistoryView: View {
                         "GPU": Color(red: 0xFF/255.0, green: 0x7A/255.0, blue: 0x00/255.0),
                     ])
                     .chartYAxisLabel("W")
+                    .chartXAxis {
+                        AxisMarks(values: .stride(by: xStride.component, count: xStride.count)) { _ in
+                            AxisGridLine()
+                            AxisTick()
+                            AxisValueLabel(format: xFormat)
+                        }
+                    }
                 }
             }
             .frame(minHeight: 180)

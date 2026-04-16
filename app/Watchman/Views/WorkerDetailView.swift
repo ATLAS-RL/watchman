@@ -42,7 +42,7 @@ private struct MetricRow: View {
                 .font(.system(size: 11, design: .monospaced))
                 .monospacedDigit()
                 .foregroundStyle(barColor)
-                .frame(width: 32, alignment: .trailing)
+                .frame(width: 48, alignment: .trailing)
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 2)
@@ -59,6 +59,8 @@ private struct MetricRow: View {
                     .monospacedDigit()
                     .foregroundStyle(tempColor(temp))
                     .frame(width: 40, alignment: .trailing)
+            } else {
+                Color.clear.frame(width: 40)
             }
         }
     }
@@ -113,8 +115,11 @@ private struct PowerRow: View {
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(Theme.textSecondary)
                     .frame(width: 48, alignment: .trailing)
-                Spacer(minLength: 0)
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Theme.trackGray)
+                    .frame(height: 6)
             }
+            Color.clear.frame(width: 40)
         }
     }
 }
