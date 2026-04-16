@@ -67,10 +67,10 @@ struct MenuBarView: View {
                     .foregroundStyle(Theme.textPrimary)
                 Spacer()
                 Button {
-                    openWindow(id: "power-history")
+                    openWindow(id: "history")
                     NSApp.activate(ignoringOtherApps: true)
                 } label: {
-                    Label("Power history", systemImage: "chart.line.uptrend.xyaxis")
+                    Label("History", systemImage: "chart.line.uptrend.xyaxis")
                         .labelStyle(.titleAndIcon)
                 }
                 .buttonStyle(PillButtonStyle())

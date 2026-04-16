@@ -20,8 +20,8 @@ struct WatchmanApp: App {
                 .preferredColorScheme(.dark)
         }
 
-        Window("Power History", id: "power-history") {
-            PowerHistoryWindow(poller: poller)
+        Window("History", id: "history") {
+            HistoryWindow(poller: poller)
         }
         .windowResizability(.contentMinSize)
     }
