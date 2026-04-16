@@ -198,46 +198,67 @@ struct WorkerDetailView: View {
             }
 
             if let m = worker.metrics {
-                // CPU block (usage + temp bar, RAM capacity, power)
-                MetricRow(
-                    label: "CPU",
-                    percent: Int(m.cpu.usage_percent),
-                    temp: m.temps.cpu_temp_c.map { Int($0) }
-                )
-                CapacityRow(
-                    label: "RAM",
-                    percent: Int((m.memory.fraction * 100).rounded()),
-                    summary: compactGB(usedMB: m.memory.used_mb, totalMB: m.memory.total_mb)
-                )
-                PowerRow(
-                    label: "CPU W",
-                    watts: m.power?.cpu_w,
-                    tdpBudget: PowerLimits.cpu(for: m.hardware?.cpu_model)
-                )
-
-                // GPU block (usage + temp bar, VRAM capacity, power) — if present
-                if let gpu = m.gpu {
-                    MetricRow(label: "GPU", percent: Int(gpu.usage_percent), temp: Int(gpu.temp_c))
-                    CapacityRow(
-                        label: "VRAM",
-                        percent: Int((gpu.vramFraction * 100).rounded()),
-                        summary: compactGB(usedMB: gpu.vram_used_mb, totalMB: gpu.vram_total_mb)
-                    )
-                    PowerRow(
-                        label: "GPU W",
-                        watts: m.power?.gpu_w,
-                        tdpBudget: PowerLimits.gpu(for: m.hardware?.gpu_model)
-                    )
-                } else {
-                    HStack(spacing: 6) {
-                        Text("GPU")
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .foregroundStyle(Theme.textSecondary)
-                            .frame(width: 36, alignment: .leading)
-                        Text("—")
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundStyle(Theme.textSecondary)
+                VStack(alignment: .leading, spacing: 10) {
+                    // CPU group (usage + temp, power)
+                    VStack(alignment: .leading, spacing: 5) {
+                        MetricRow(
+                            label: "CPU",
+                            percent: Int(m.cpu.usage_percent),
+                            temp: m.temps.cpu_temp_c.map { Int($0) }
+                        )
+                        PowerRow(
+                            label: "CPU W",
+                            watts: m.power?.cpu_w,
+                            tdpBudget: PowerLimits.cpu(for: m.hardware?.cpu_model)
+                        )
                     }
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 6)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
+                    )
+
+                    // GPU group (usage + temp, VRAM capacity, power) — if present
+                    VStack(alignment: .leading, spacing: 5) {
+                        if let gpu = m.gpu {
+                            MetricRow(label: "GPU", percent: Int(gpu.usage_percent), temp: Int(gpu.temp_c))
+                            CapacityRow(
+                                label: "VRAM",
+                                percent: Int((gpu.vramFraction * 100).rounded()),
+                                summary: compactGB(usedMB: gpu.vram_used_mb, totalMB: gpu.vram_total_mb)
+                            )
+                            PowerRow(
+                                label: "GPU W",
+                                watts: m.power?.gpu_w,
+                                tdpBudget: PowerLimits.gpu(for: m.hardware?.gpu_model)
+                            )
+                        } else {
+                            HStack(spacing: 6) {
+                                Text("GPU")
+                                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(Theme.textSecondary)
+                                    .frame(width: 36, alignment: .leading)
+                                Text("—")
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundStyle(Theme.textSecondary)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 6)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
+                    )
+
+                    // RAM (standalone, no group box)
+                    CapacityRow(
+                        label: "RAM",
+                        percent: Int((m.memory.fraction * 100).rounded()),
+                        summary: compactGB(usedMB: m.memory.used_mb, totalMB: m.memory.total_mb)
+                    )
+                    .padding(.horizontal, 6)
                 }
             }
         }
