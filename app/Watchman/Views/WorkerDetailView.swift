@@ -176,13 +176,21 @@ struct WorkerDetailView: View {
                     temp: m.temps.cpu_temp_c.map { Int($0) }
                 )
                 CapacityRow(label: "RAM", used: m.memory.usedFormatted, total: m.memory.totalFormatted)
-                PowerRow(label: "CPU W", watts: m.power?.cpu_w, tdpBudget: 125)
+                PowerRow(
+                    label: "CPU W",
+                    watts: m.power?.cpu_w,
+                    tdpBudget: PowerLimits.cpu(for: m.hardware?.cpu_model)
+                )
 
                 // GPU block (usage + temp bar, VRAM capacity, power) — if present
                 if let gpu = m.gpu {
                     MetricRow(label: "GPU", percent: Int(gpu.usage_percent), temp: Int(gpu.temp_c))
                     CapacityRow(label: "VRAM", used: gpu.vramUsedFormatted, total: gpu.vramTotalFormatted)
-                    PowerRow(label: "GPU W", watts: m.power?.gpu_w, tdpBudget: 300)
+                    PowerRow(
+                        label: "GPU W",
+                        watts: m.power?.gpu_w,
+                        tdpBudget: PowerLimits.gpu(for: m.hardware?.gpu_model)
+                    )
                 } else {
                     HStack(spacing: 6) {
                         Text("GPU")

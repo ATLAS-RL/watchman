@@ -20,6 +20,7 @@ struct Metrics {
     disk: DiskMetrics,
     temps: TempMetrics,
     power: PowerMetrics,
+    hardware: HardwareInfo,
     timestamp: String,
 }
 
@@ -27,6 +28,12 @@ struct Metrics {
 struct PowerMetrics {
     cpu_w: Option<f32>,
     gpu_w: Option<f32>,
+}
+
+#[derive(Serialize, Clone, Default)]
+struct HardwareInfo {
+    cpu_model: Option<String>,
+    gpu_model: Option<String>,
 }
 
 #[derive(Serialize, Clone)]
@@ -128,20 +135,21 @@ fn collect_temp_metrics(components: &Components) -> TempMetrics {
     }
 }
 
-fn collect_gpu_metrics(nvml: &Nvml) -> (Option<GpuMetrics>, Option<f32>) {
+fn collect_gpu_metrics(nvml: &Nvml) -> (Option<GpuMetrics>, Option<f32>, Option<String>) {
     let Ok(device) = nvml.device_by_index(0) else {
-        return (None, None);
+        return (None, None, None);
     };
+    let name = device.name().ok();
     let Ok(utilization) = device.utilization_rates() else {
-        return (None, None);
+        return (None, None, name);
     };
     let Ok(memory_info) = device.memory_info() else {
-        return (None, None);
+        return (None, None, name);
     };
     let Ok(temp) =
         device.temperature(nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu)
     else {
-        return (None, None);
+        return (None, None, name);
     };
     let fan = device.fan_speed(0).unwrap_or(0);
     let power_w = power::nvml_power_watts(&device);
@@ -153,7 +161,19 @@ fn collect_gpu_metrics(nvml: &Nvml) -> (Option<GpuMetrics>, Option<f32>) {
         temp_c: temp,
         fan_speed_percent: fan,
     };
-    (Some(gpu), power_w)
+    (Some(gpu), power_w, name)
+}
+
+fn read_cpu_model() -> Option<String> {
+    let raw = std::fs::read_to_string("/proc/cpuinfo").ok()?;
+    for line in raw.lines() {
+        if let Some(rest) = line.strip_prefix("model name") {
+            if let Some(colon) = rest.find(':') {
+                return Some(rest[colon + 1..].trim().to_string());
+            }
+        }
+    }
+    None
 }
 
 async fn metrics_handler(State(state): State<Arc<AppState>>) -> Json<Metrics> {
@@ -195,6 +215,7 @@ async fn main() {
         },
         temps: TempMetrics { cpu_temp_c: None },
         power: PowerMetrics::default(),
+        hardware: HardwareInfo::default(),
         timestamp: Utc::now().to_rfc3339(),
     };
 
@@ -213,6 +234,7 @@ async fn main() {
         if !rapl.available() {
             info!("RAPL not available — cpu_w will be null");
         }
+        let cpu_model = read_cpu_model();
         let mut disk_tick: u32 = 0;
         let mut disk = collect_disk_metrics();
 
@@ -231,7 +253,7 @@ async fn main() {
 
             let cpu_w = rapl.sample();
 
-            let (gpu, gpu_w) = if let Some(ref nvml) = nvml {
+            let (gpu, gpu_w, gpu_model) = if let Some(ref nvml) = nvml {
                 // NVML Device is not Send, so use spawn_blocking
                 let nvml_ptr = nvml as *const Nvml as usize;
                 tokio::task::spawn_blocking(move || {
@@ -239,9 +261,9 @@ async fn main() {
                     collect_gpu_metrics(nvml)
                 })
                 .await
-                .unwrap_or((None, None))
+                .unwrap_or((None, None, None))
             } else {
-                (None, None)
+                (None, None, None)
             };
 
             let metrics = Metrics {
@@ -252,6 +274,10 @@ async fn main() {
                 disk: disk.clone(),
                 temps: collect_temp_metrics(&components),
                 power: PowerMetrics { cpu_w, gpu_w },
+                hardware: HardwareInfo {
+                    cpu_model: cpu_model.clone(),
+                    gpu_model,
+                },
                 timestamp: Utc::now().to_rfc3339(),
             };
 
