@@ -324,8 +324,13 @@ actor MetricStore {
         runRaw("PRAGMA journal_mode=WAL;")
         runRaw("PRAGMA synchronous=NORMAL;")
 
+        // Also re-enter migration when user_version claims v2 but a stray
+        // `power_samples` table is still around — early builds of this
+        // feature could leave the DB in that state.
         let version = readUserVersion()
-        if version < 2 { migrateToV2(from: version) }
+        if version < 2 || tableExists("power_samples") {
+            migrateToV2(from: version)
+        }
 
         let insertSQL = """
         INSERT OR REPLACE INTO metric_samples
@@ -347,16 +352,36 @@ actor MetricStore {
         return sqlite3_step(stmt) == SQLITE_ROW ? Int(sqlite3_column_int(stmt, 0)) : 0
     }
 
-    /// v0 → v2: fresh DB, create metric_samples directly.
-    /// v1 → v2: previous schema used `power_samples` with 6 columns. Rename
-    ///          and add 8 nullable columns for GPU/system/disk gauges.
+    /// Brings the DB to v2 regardless of the previous state. Driven by table
+    /// presence rather than `user_version` alone, so we can recover from an
+    /// earlier buggy migration that created an empty `metric_samples` next
+    /// to the legacy `power_samples` table without merging them.
     private func migrateToV2(from version: Int) {
         runRaw("BEGIN;")
         defer { runRaw("COMMIT;") }
 
-        if version < 1 {
+        let legacy = tableExists("power_samples")
+        let modern = tableExists("metric_samples")
+
+        if legacy && modern {
+            // Recovery path: merge legacy rows into the new table (using
+            // NULL for the new columns) and drop the legacy table. Stale
+            // rows already present in `metric_samples` are preserved via
+            // INSERT OR IGNORE, since (hostname, timestamp) is the key.
             runRaw("""
-            CREATE TABLE IF NOT EXISTS metric_samples (
+            INSERT OR IGNORE INTO metric_samples
+                (timestamp, hostname, cpu_w, gpu_w, cpu_pct, gpu_pct)
+            SELECT timestamp, hostname, cpu_w, gpu_w, cpu_pct, gpu_pct
+            FROM power_samples;
+            """)
+            runRaw("DROP TABLE power_samples;")
+        } else if legacy {
+            // v1 upgrade: rename the table, then add the new columns.
+            runRaw("ALTER TABLE power_samples RENAME TO metric_samples;")
+        } else if !modern {
+            // Fresh install.
+            runRaw("""
+            CREATE TABLE metric_samples (
                 timestamp     INTEGER NOT NULL,
                 hostname      TEXT    NOT NULL,
                 cpu_w         REAL,
@@ -374,28 +399,38 @@ actor MetricStore {
                 PRIMARY KEY (hostname, timestamp)
             );
             """)
-        } else {
-            // v1 had `power_samples`. Rename + add columns. ADD COLUMN errors
-            // are ignored so the migration is safe to re-run if it partially
-            // completed on a prior launch.
-            runRaw("ALTER TABLE power_samples RENAME TO metric_samples;")
-            for col in [
-                "gpu_temp_c    REAL",
-                "cpu_temp_c    REAL",
-                "vram_used_mb  INTEGER",
-                "vram_total_mb INTEGER",
-                "mem_used_mb   INTEGER",
-                "mem_total_mb  INTEGER",
-                "disk_used_gb  INTEGER",
-                "disk_total_gb INTEGER",
-            ] {
-                runRaw("ALTER TABLE metric_samples ADD COLUMN \(col);")
-            }
+        }
+
+        // ADD COLUMN on an already-present column is a no-op here because
+        // runRaw swallows the error. Safe to call on every migration path.
+        for col in [
+            "gpu_temp_c    REAL",
+            "cpu_temp_c    REAL",
+            "vram_used_mb  INTEGER",
+            "vram_total_mb INTEGER",
+            "mem_used_mb   INTEGER",
+            "mem_total_mb  INTEGER",
+            "disk_used_gb  INTEGER",
+            "disk_total_gb INTEGER",
+        ] {
+            runRaw("ALTER TABLE metric_samples ADD COLUMN \(col);")
         }
 
         runRaw("DROP INDEX IF EXISTS idx_host_ts;")
         runRaw("CREATE INDEX IF NOT EXISTS idx_host_ts ON metric_samples(hostname, timestamp);")
         runRaw("PRAGMA user_version = 2;")
+    }
+
+    private func tableExists(_ name: String) -> Bool {
+        guard let db = db else { return false }
+        var stmt: OpaquePointer?
+        defer { sqlite3_finalize(stmt) }
+        let sql = "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?;"
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return false }
+        name.withCString { ptr in
+            sqlite3_bind_text(stmt, 1, ptr, -1, Self.SQLITE_TRANSIENT)
+        }
+        return sqlite3_step(stmt) == SQLITE_ROW
     }
 
     private func runRaw(_ sql: String) {
