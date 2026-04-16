@@ -10,6 +10,10 @@ class AppSettings: ObservableObject {
         didSet { updateLaunchAtLogin() }
     }
 
+    // MARK: - Alert settings (populated in the preferences tab)
+
+    @AppStorage("notificationsEnabled") var notificationsEnabled: Bool = true
+
     /// Worker aliases keyed by worker id (e.g. "worker-0" → "W0")
     @Published var workerAliases: [String: String] = [:] {
         didSet { saveAliases() }

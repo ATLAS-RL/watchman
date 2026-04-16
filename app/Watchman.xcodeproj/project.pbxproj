@@ -24,6 +24,8 @@
 		E1F2A3B4C5D60003E1F2A3B4 /* GpuTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E2D3C4B5A60003F1E2D3C4 /* GpuTab.swift */; };
 		E1F2A3B4C5D60004E1F2A3B4 /* SystemTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E2D3C4B5A60004F1E2D3C4 /* SystemTab.swift */; };
 		E1F2A3B4C5D60005E1F2A3B4 /* DiskTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E2D3C4B5A60005F1E2D3C4 /* DiskTab.swift */; };
+		B2A3C4D5E6F70001B2A3C4D5 /* AlertConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2B3A4D5E6F70001C2B3A4D5 /* AlertConfig.swift */; };
+		B2A3C4D5E6F70002B2A3C4D5 /* AlertsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2B3A4D5E6F70002C2B3A4D5 /* AlertsEngine.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -46,6 +48,8 @@
 		F1E2D3C4B5A60003F1E2D3C4 /* GpuTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GpuTab.swift; sourceTree = "<group>"; };
 		F1E2D3C4B5A60004F1E2D3C4 /* SystemTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemTab.swift; sourceTree = "<group>"; };
 		F1E2D3C4B5A60005F1E2D3C4 /* DiskTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiskTab.swift; sourceTree = "<group>"; };
+		C2B3A4D5E6F70001C2B3A4D5 /* AlertConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertConfig.swift; sourceTree = "<group>"; };
+		C2B3A4D5E6F70002C2B3A4D5 /* AlertsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsEngine.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -89,6 +93,7 @@
 		32B19886BB34D53D07852DF7 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				C2B3A4D5E6F70001C2B3A4D5 /* AlertConfig.swift */,
 				D4C3B2A1E5F60718D4C3B2A1 /* AppSettings.swift */,
 				A4B5C6D7E8F90004A4B5C6D7 /* PowerLimits.swift */,
 				A4B5C6D7E8F90001A4B5C6D7 /* MetricSample.swift */,
@@ -108,6 +113,7 @@
 		911B9EC669AFB595503C25A8 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				C2B3A4D5E6F70002C2B3A4D5 /* AlertsEngine.swift */,
 				E394DA01A25C8C15E3E20243 /* MetricsPoller.swift */,
 				A4B5C6D7E8F90002A4B5C6D7 /* MetricStore.swift */,
 			);
@@ -189,6 +195,8 @@
 				E1F2A3B4C5D60003E1F2A3B4 /* GpuTab.swift in Sources */,
 				E1F2A3B4C5D60004E1F2A3B4 /* SystemTab.swift in Sources */,
 				E1F2A3B4C5D60005E1F2A3B4 /* DiskTab.swift in Sources */,
+				B2A3C4D5E6F70001B2A3C4D5 /* AlertConfig.swift in Sources */,
+				B2A3C4D5E6F70002B2A3C4D5 /* AlertsEngine.swift in Sources */,
 				B2C3D4E5F6071829B2C3D4E5 /* SettingsView.swift in Sources */,
 				C3D4E5F607182930C3D4E5F6 /* Theme.swift in Sources */,
 				0CEC294578C20AA504EC0DB6 /* WatchmanApp.swift in Sources */,

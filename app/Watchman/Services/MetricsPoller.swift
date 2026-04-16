@@ -8,6 +8,8 @@ class MetricsPoller: ObservableObject {
 
     private var timer: Timer?
     private let session: URLSession
+    private let settings: AppSettings
+    weak var alertsEngine: AlertsEngine?
 
     var overallStatus: OverallStatus {
         let states = workers.map(\.state)
@@ -17,7 +19,8 @@ class MetricsPoller: ObservableObject {
         return .allGood
     }
 
-    init() {
+    init(settings: AppSettings = .shared) {
+        self.settings = settings
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 2
         config.timeoutIntervalForResource = 2
@@ -65,12 +68,19 @@ class MetricsPoller: ObservableObject {
             }
 
             for await (index, metrics) in group {
+                let worker = workers[index]
                 if let metrics {
                     workers[index].update(with: metrics)
                     ingestSample(metrics)
                 } else {
                     workers[index].markUnreachable()
                 }
+                alertsEngine?.evaluate(
+                    workerId: worker.id,
+                    alias: settings.alias(for: worker.id),
+                    host: worker.url.host,
+                    metrics: metrics
+                )
             }
             lastPollTime = Date()
         }

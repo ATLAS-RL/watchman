@@ -3,8 +3,19 @@ import SwiftUI
 
 @main
 struct WatchmanApp: App {
-    @StateObject private var poller = MetricsPoller()
     @StateObject private var settings = AppSettings.shared
+    @StateObject private var poller: MetricsPoller
+    @StateObject private var alerts: AlertsEngine
+
+    init() {
+        let settings = AppSettings.shared
+        let poller = MetricsPoller(settings: settings)
+        let alerts = AlertsEngine(settings: settings)
+        poller.alertsEngine = alerts
+        _poller = StateObject(wrappedValue: poller)
+        _alerts = StateObject(wrappedValue: alerts)
+        Task { await alerts.requestAuthorizationIfNeeded() }
+    }
 
     var body: some Scene {
         MenuBarExtra {
