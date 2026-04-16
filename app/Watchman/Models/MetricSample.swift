@@ -1,6 +1,6 @@
 import Foundation
 
-struct PowerSample {
+struct MetricSample {
     let timestamp: Date
     let hostname: String
     let cpuW: Double?

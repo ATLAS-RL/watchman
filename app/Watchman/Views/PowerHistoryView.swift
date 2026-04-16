@@ -34,8 +34,8 @@ final class PowerHistoryViewModel: ObservableObject {
         isLoading = true
         let host = selectedHost
         let win = window
-        async let aggTask = PowerStore.shared.aggregate(hostname: host, window: win)
-        async let sumTask = PowerStore.shared.summary(hostname: host, window: win)
+        async let aggTask = MetricStore.shared.aggregate(hostname: host, window: win)
+        async let sumTask = MetricStore.shared.summary(hostname: host, window: win)
         let (agg, sum) = await (aggTask, sumTask)
         buckets = agg
         summary = sum

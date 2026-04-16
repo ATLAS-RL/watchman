@@ -1,12 +1,12 @@
 import Foundation
 import SQLite3
 
-/// Thread-safe SQLite-backed store for per-worker CPU/GPU power samples.
+/// Thread-safe SQLite-backed store for per-worker metric samples.
 ///
 /// Ingestion is fire-and-forget from `MetricsPoller`; aggregation queries run
 /// on a background executor so the UI never blocks.
-actor PowerStore {
-    static let shared = PowerStore()
+actor MetricStore {
+    static let shared = MetricStore()
 
     private var db: OpaquePointer?
     private var insertStmt: OpaquePointer?
@@ -46,7 +46,7 @@ actor PowerStore {
 
     // MARK: - Ingest
 
-    func ingest(_ sample: PowerSample) {
+    func ingest(_ sample: MetricSample) {
         if sample.cpuW == nil && sample.gpuW == nil { return }
         guard let stmt = insertStmt else { return }
 

@@ -15,8 +15,8 @@
 		A1B2C3D4E5F60718A1B2C3D4 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C3B2A1E5F60718D4C3B2A1 /* AppSettings.swift */; };
 		B2C3D4E5F6071829B2C3D4E5 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5D4C3B2F6071829E5D4C3B2 /* SettingsView.swift */; };
 		C3D4E5F607182930C3D4E5F6 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6E5D4C307182930F6E5D4C3 /* Theme.swift */; };
-		D1E2F3A4B5C60001D1E2F3A4 /* PowerSample.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B5C6D7E8F90001A4B5C6D7 /* PowerSample.swift */; };
-		D1E2F3A4B5C60002D1E2F3A4 /* PowerStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B5C6D7E8F90002A4B5C6D7 /* PowerStore.swift */; };
+		D1E2F3A4B5C60001D1E2F3A4 /* MetricSample.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B5C6D7E8F90001A4B5C6D7 /* MetricSample.swift */; };
+		D1E2F3A4B5C60002D1E2F3A4 /* MetricStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B5C6D7E8F90002A4B5C6D7 /* MetricStore.swift */; };
 		D1E2F3A4B5C60003D1E2F3A4 /* PowerHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B5C6D7E8F90003A4B5C6D7 /* PowerHistoryView.swift */; };
 		D1E2F3A4B5C60004D1E2F3A4 /* PowerLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B5C6D7E8F90004A4B5C6D7 /* PowerLimits.swift */; };
 /* End PBXBuildFile section */
@@ -32,8 +32,8 @@
 		D4C3B2A1E5F60718D4C3B2A1 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		E5D4C3B2F6071829E5D4C3B2 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		F6E5D4C307182930F6E5D4C3 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
-		A4B5C6D7E8F90001A4B5C6D7 /* PowerSample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerSample.swift; sourceTree = "<group>"; };
-		A4B5C6D7E8F90002A4B5C6D7 /* PowerStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerStore.swift; sourceTree = "<group>"; };
+		A4B5C6D7E8F90001A4B5C6D7 /* MetricSample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricSample.swift; sourceTree = "<group>"; };
+		A4B5C6D7E8F90002A4B5C6D7 /* MetricStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricStore.swift; sourceTree = "<group>"; };
 		A4B5C6D7E8F90003A4B5C6D7 /* PowerHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerHistoryView.swift; sourceTree = "<group>"; };
 		A4B5C6D7E8F90004A4B5C6D7 /* PowerLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerLimits.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -68,7 +68,7 @@
 			children = (
 				D4C3B2A1E5F60718D4C3B2A1 /* AppSettings.swift */,
 				A4B5C6D7E8F90004A4B5C6D7 /* PowerLimits.swift */,
-				A4B5C6D7E8F90001A4B5C6D7 /* PowerSample.swift */,
+				A4B5C6D7E8F90001A4B5C6D7 /* MetricSample.swift */,
 				7033D853466C8B698B2AD744 /* WorkerMetrics.swift */,
 			);
 			path = Models;
@@ -86,7 +86,7 @@
 			isa = PBXGroup;
 			children = (
 				E394DA01A25C8C15E3E20243 /* MetricsPoller.swift */,
-				A4B5C6D7E8F90002A4B5C6D7 /* PowerStore.swift */,
+				A4B5C6D7E8F90002A4B5C6D7 /* MetricStore.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -159,8 +159,8 @@
 				F2F39E4C9D753706658A9B72 /* MetricsPoller.swift in Sources */,
 				D1E2F3A4B5C60003D1E2F3A4 /* PowerHistoryView.swift in Sources */,
 				D1E2F3A4B5C60004D1E2F3A4 /* PowerLimits.swift in Sources */,
-				D1E2F3A4B5C60001D1E2F3A4 /* PowerSample.swift in Sources */,
-				D1E2F3A4B5C60002D1E2F3A4 /* PowerStore.swift in Sources */,
+				D1E2F3A4B5C60001D1E2F3A4 /* MetricSample.swift in Sources */,
+				D1E2F3A4B5C60002D1E2F3A4 /* MetricStore.swift in Sources */,
 				B2C3D4E5F6071829B2C3D4E5 /* SettingsView.swift in Sources */,
 				C3D4E5F607182930C3D4E5F6 /* Theme.swift in Sources */,
 				0CEC294578C20AA504EC0DB6 /* WatchmanApp.swift in Sources */,
