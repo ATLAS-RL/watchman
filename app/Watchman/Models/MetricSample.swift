@@ -7,6 +7,14 @@ struct MetricSample {
     let gpuW: Double?
     let cpuUsagePct: Double
     let gpuUsagePct: Double
+    let gpuTempC: Double?
+    let cpuTempC: Double?
+    let vramUsedMb: UInt64?
+    let vramTotalMb: UInt64?
+    let memUsedMb: UInt64?
+    let memTotalMb: UInt64?
+    let diskUsedGb: UInt64?
+    let diskTotalGb: UInt64?
 }
 
 enum PowerWindow: String, CaseIterable, Identifiable {

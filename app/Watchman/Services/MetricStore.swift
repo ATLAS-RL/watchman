@@ -47,7 +47,6 @@ actor MetricStore {
     // MARK: - Ingest
 
     func ingest(_ sample: MetricSample) {
-        if sample.cpuW == nil && sample.gpuW == nil { return }
         guard let stmt = insertStmt else { return }
 
         sqlite3_reset(stmt)
@@ -55,13 +54,29 @@ actor MetricStore {
         sample.hostname.withCString { ptr in
             sqlite3_bind_text(stmt, 2, ptr, -1, Self.SQLITE_TRANSIENT)
         }
-        if let cpu = sample.cpuW { sqlite3_bind_double(stmt, 3, cpu) }
-        else { sqlite3_bind_null(stmt, 3) }
-        if let gpu = sample.gpuW { sqlite3_bind_double(stmt, 4, gpu) }
-        else { sqlite3_bind_null(stmt, 4) }
+        bindOptionalDouble(stmt, 3, sample.cpuW)
+        bindOptionalDouble(stmt, 4, sample.gpuW)
         sqlite3_bind_double(stmt, 5, sample.cpuUsagePct)
         sqlite3_bind_double(stmt, 6, sample.gpuUsagePct)
+        bindOptionalDouble(stmt, 7, sample.gpuTempC)
+        bindOptionalDouble(stmt, 8, sample.cpuTempC)
+        bindOptionalUInt64(stmt, 9, sample.vramUsedMb)
+        bindOptionalUInt64(stmt, 10, sample.vramTotalMb)
+        bindOptionalUInt64(stmt, 11, sample.memUsedMb)
+        bindOptionalUInt64(stmt, 12, sample.memTotalMb)
+        bindOptionalUInt64(stmt, 13, sample.diskUsedGb)
+        bindOptionalUInt64(stmt, 14, sample.diskTotalGb)
         sqlite3_step(stmt)
+    }
+
+    private func bindOptionalDouble(_ stmt: OpaquePointer?, _ idx: Int32, _ value: Double?) {
+        if let v = value { sqlite3_bind_double(stmt, idx, v) }
+        else { sqlite3_bind_null(stmt, idx) }
+    }
+
+    private func bindOptionalUInt64(_ stmt: OpaquePointer?, _ idx: Int32, _ value: UInt64?) {
+        if let v = value { sqlite3_bind_int64(stmt, idx, Int64(bitPattern: v)) }
+        else { sqlite3_bind_null(stmt, idx) }
     }
 
     // MARK: - Query
@@ -82,7 +97,7 @@ actor MetricStore {
                    cpu_w IS NULL AS cpu_null,
                    gpu_w IS NULL AS gpu_null,
                    cpu_pct, gpu_pct
-            FROM power_samples
+            FROM metric_samples
             WHERE timestamp >= ? \(hostFilter)
         ),
         windowed AS (
@@ -188,25 +203,79 @@ actor MetricStore {
         }
         runRaw("PRAGMA journal_mode=WAL;")
         runRaw("PRAGMA synchronous=NORMAL;")
-        runRaw("""
-        CREATE TABLE IF NOT EXISTS power_samples (
-            timestamp INTEGER NOT NULL,
-            hostname  TEXT    NOT NULL,
-            cpu_w     REAL,
-            gpu_w     REAL,
-            cpu_pct   REAL NOT NULL,
-            gpu_pct   REAL NOT NULL,
-            PRIMARY KEY (hostname, timestamp)
-        );
-        """)
-        runRaw("CREATE INDEX IF NOT EXISTS idx_host_ts ON power_samples(hostname, timestamp);")
+
+        let version = readUserVersion()
+        if version < 2 { migrateToV2(from: version) }
 
         let insertSQL = """
-        INSERT OR REPLACE INTO power_samples
-            (timestamp, hostname, cpu_w, gpu_w, cpu_pct, gpu_pct)
-        VALUES (?, ?, ?, ?, ?, ?);
+        INSERT OR REPLACE INTO metric_samples
+            (timestamp, hostname, cpu_w, gpu_w, cpu_pct, gpu_pct,
+             gpu_temp_c, cpu_temp_c, vram_used_mb, vram_total_mb,
+             mem_used_mb, mem_total_mb, disk_used_gb, disk_total_gb)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """
         sqlite3_prepare_v2(db, insertSQL, -1, &insertStmt, nil)
+    }
+
+    private func readUserVersion() -> Int {
+        guard let db = db else { return 0 }
+        var stmt: OpaquePointer?
+        defer { sqlite3_finalize(stmt) }
+        guard sqlite3_prepare_v2(db, "PRAGMA user_version;", -1, &stmt, nil) == SQLITE_OK else {
+            return 0
+        }
+        return sqlite3_step(stmt) == SQLITE_ROW ? Int(sqlite3_column_int(stmt, 0)) : 0
+    }
+
+    /// v0 → v2: fresh DB, create metric_samples directly.
+    /// v1 → v2: previous schema used `power_samples` with 6 columns. Rename
+    ///          and add 8 nullable columns for GPU/system/disk gauges.
+    private func migrateToV2(from version: Int) {
+        runRaw("BEGIN;")
+        defer { runRaw("COMMIT;") }
+
+        if version < 1 {
+            runRaw("""
+            CREATE TABLE IF NOT EXISTS metric_samples (
+                timestamp     INTEGER NOT NULL,
+                hostname      TEXT    NOT NULL,
+                cpu_w         REAL,
+                gpu_w         REAL,
+                cpu_pct       REAL    NOT NULL,
+                gpu_pct       REAL    NOT NULL,
+                gpu_temp_c    REAL,
+                cpu_temp_c    REAL,
+                vram_used_mb  INTEGER,
+                vram_total_mb INTEGER,
+                mem_used_mb   INTEGER,
+                mem_total_mb  INTEGER,
+                disk_used_gb  INTEGER,
+                disk_total_gb INTEGER,
+                PRIMARY KEY (hostname, timestamp)
+            );
+            """)
+        } else {
+            // v1 had `power_samples`. Rename + add columns. ADD COLUMN errors
+            // are ignored so the migration is safe to re-run if it partially
+            // completed on a prior launch.
+            runRaw("ALTER TABLE power_samples RENAME TO metric_samples;")
+            for col in [
+                "gpu_temp_c    REAL",
+                "cpu_temp_c    REAL",
+                "vram_used_mb  INTEGER",
+                "vram_total_mb INTEGER",
+                "mem_used_mb   INTEGER",
+                "mem_total_mb  INTEGER",
+                "disk_used_gb  INTEGER",
+                "disk_total_gb INTEGER",
+            ] {
+                runRaw("ALTER TABLE metric_samples ADD COLUMN \(col);")
+            }
+        }
+
+        runRaw("DROP INDEX IF EXISTS idx_host_ts;")
+        runRaw("CREATE INDEX IF NOT EXISTS idx_host_ts ON metric_samples(hostname, timestamp);")
+        runRaw("PRAGMA user_version = 2;")
     }
 
     private func runRaw(_ sql: String) {
@@ -230,7 +299,7 @@ actor MetricStore {
         )
         var stmt: OpaquePointer?
         if sqlite3_prepare_v2(
-            db, "DELETE FROM power_samples WHERE timestamp < ?;", -1, &stmt, nil
+            db, "DELETE FROM metric_samples WHERE timestamp < ?;", -1, &stmt, nil
         ) == SQLITE_OK {
             sqlite3_bind_int64(stmt, 1, cutoff)
             sqlite3_step(stmt)

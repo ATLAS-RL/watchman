@@ -77,14 +77,21 @@ class MetricsPoller: ObservableObject {
     }
 
     private func ingestSample(_ m: WorkerMetrics) {
-        let gpuUsage = Double(m.gpu?.usage_percent ?? 0)
         let sample = MetricSample(
             timestamp: Date(),
             hostname: m.hostname,
-            cpuW: m.power?.cpu_w.map { Double($0) } ?? nil,
-            gpuW: m.power?.gpu_w.map { Double($0) } ?? nil,
+            cpuW: m.power?.cpu_w.map(Double.init) ?? nil,
+            gpuW: m.power?.gpu_w.map(Double.init) ?? nil,
             cpuUsagePct: Double(m.cpu.usage_percent),
-            gpuUsagePct: gpuUsage
+            gpuUsagePct: Double(m.gpu?.usage_percent ?? 0),
+            gpuTempC: m.gpu.map { Double($0.temp_c) },
+            cpuTempC: m.temps.cpu_temp_c.map(Double.init),
+            vramUsedMb: m.gpu?.vram_used_mb,
+            vramTotalMb: m.gpu?.vram_total_mb,
+            memUsedMb: m.memory.used_mb,
+            memTotalMb: m.memory.total_mb,
+            diskUsedGb: m.disk.used_gb,
+            diskTotalGb: m.disk.total_gb
         )
         Task { await MetricStore.shared.ingest(sample) }
     }
