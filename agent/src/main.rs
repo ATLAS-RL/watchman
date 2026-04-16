@@ -1,3 +1,5 @@
+mod power;
+
 use axum::{extract::State, http::StatusCode, response::Json, routing::get, Router};
 use chrono::Utc;
 use nvml_wrapper::Nvml;
@@ -7,6 +9,8 @@ use sysinfo::{Components, Disks, System};
 use tokio::sync::RwLock;
 use tracing::info;
 
+use crate::power::RaplSampler;
+
 #[derive(Serialize, Clone)]
 struct Metrics {
     hostname: String,
@@ -15,7 +19,14 @@ struct Metrics {
     memory: MemoryMetrics,
     disk: DiskMetrics,
     temps: TempMetrics,
+    power: PowerMetrics,
     timestamp: String,
+}
+
+#[derive(Serialize, Clone, Default)]
+struct PowerMetrics {
+    cpu_w: Option<f32>,
+    gpu_w: Option<f32>,
 }
 
 #[derive(Serialize, Clone)]
@@ -117,22 +128,32 @@ fn collect_temp_metrics(components: &Components) -> TempMetrics {
     }
 }
 
-fn collect_gpu_metrics(nvml: &Nvml) -> Option<GpuMetrics> {
-    let device = nvml.device_by_index(0).ok()?;
-    let utilization = device.utilization_rates().ok()?;
-    let memory_info = device.memory_info().ok()?;
-    let temp = device
-        .temperature(nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu)
-        .ok()?;
+fn collect_gpu_metrics(nvml: &Nvml) -> (Option<GpuMetrics>, Option<f32>) {
+    let Ok(device) = nvml.device_by_index(0) else {
+        return (None, None);
+    };
+    let Ok(utilization) = device.utilization_rates() else {
+        return (None, None);
+    };
+    let Ok(memory_info) = device.memory_info() else {
+        return (None, None);
+    };
+    let Ok(temp) =
+        device.temperature(nvml_wrapper::enum_wrappers::device::TemperatureSensor::Gpu)
+    else {
+        return (None, None);
+    };
     let fan = device.fan_speed(0).unwrap_or(0);
+    let power_w = power::nvml_power_watts(&device);
 
-    Some(GpuMetrics {
+    let gpu = GpuMetrics {
         usage_percent: utilization.gpu,
         vram_used_mb: memory_info.used / 1_048_576,
         vram_total_mb: memory_info.total / 1_048_576,
         temp_c: temp,
         fan_speed_percent: fan,
-    })
+    };
+    (Some(gpu), power_w)
 }
 
 async fn metrics_handler(State(state): State<Arc<AppState>>) -> Json<Metrics> {
@@ -173,6 +194,7 @@ async fn main() {
             total_gb: 0,
         },
         temps: TempMetrics { cpu_temp_c: None },
+        power: PowerMetrics::default(),
         timestamp: Utc::now().to_rfc3339(),
     };
 
@@ -187,6 +209,10 @@ async fn main() {
         let mut sys = System::new_all();
         let mut components = Components::new_with_refreshed_list();
         let nvml = Nvml::init().ok();
+        let mut rapl = RaplSampler::new();
+        if !rapl.available() {
+            info!("RAPL not available — cpu_w will be null");
+        }
         let mut disk_tick: u32 = 0;
         let mut disk = collect_disk_metrics();
 
@@ -203,7 +229,9 @@ async fn main() {
                 disk = collect_disk_metrics();
             }
 
-            let gpu = if let Some(ref nvml) = nvml {
+            let cpu_w = rapl.sample();
+
+            let (gpu, gpu_w) = if let Some(ref nvml) = nvml {
                 // NVML Device is not Send, so use spawn_blocking
                 let nvml_ptr = nvml as *const Nvml as usize;
                 tokio::task::spawn_blocking(move || {
@@ -211,10 +239,9 @@ async fn main() {
                     collect_gpu_metrics(nvml)
                 })
                 .await
-                .ok()
-                .flatten()
+                .unwrap_or((None, None))
             } else {
-                None
+                (None, None)
             };
 
             let metrics = Metrics {
@@ -224,6 +251,7 @@ async fn main() {
                 memory: collect_memory_metrics(&sys),
                 disk: disk.clone(),
                 temps: collect_temp_metrics(&components),
+                power: PowerMetrics { cpu_w, gpu_w },
                 timestamp: Utc::now().to_rfc3339(),
             };
 

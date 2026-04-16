@@ -3,7 +3,16 @@ set -euo pipefail
 
 BINARY="target/x86_64-unknown-linux-gnu/release/watchman-agent"
 SERVICE="deploy/watchman-agent.service"
+RAPL_RULE="deploy/99-rapl.rules"
 WORKERS=("ivantha-worker-0" "ivantha-worker-1")
+
+INSTALL_RAPL=0
+for arg in "$@"; do
+    case "$arg" in
+        --install-rapl) INSTALL_RAPL=1 ;;
+        *) echo "Unknown arg: $arg" >&2; exit 2 ;;
+    esac
+done
 
 if [ ! -f "$BINARY" ]; then
     echo "Error: Binary not found at $BINARY"
@@ -11,8 +20,22 @@ if [ ! -f "$BINARY" ]; then
     exit 1
 fi
 
+if [ "$INSTALL_RAPL" = "1" ] && [ ! -f "$RAPL_RULE" ]; then
+    echo "Error: --install-rapl requested but $RAPL_RULE is missing"
+    exit 1
+fi
+
 for worker in "${WORKERS[@]}"; do
     echo "=== Deploying to $worker ==="
+
+    if [ "$INSTALL_RAPL" = "1" ]; then
+        echo "  Installing RAPL udev rule (will prompt for sudo password on $worker)..."
+        scp "$RAPL_RULE" "${worker}:/tmp/99-rapl.rules"
+        ssh -t "$worker" "sudo install -m 644 /tmp/99-rapl.rules /etc/udev/rules.d/99-rapl.rules \
+            && sudo udevadm control --reload-rules \
+            && sudo udevadm trigger --subsystem-match=powercap \
+            && rm -f /tmp/99-rapl.rules"
+    fi
 
     echo "  Creating directories..."
     ssh "$worker" "mkdir -p ~/.local/bin ~/.config/systemd/user"
@@ -47,3 +70,6 @@ echo "Deployment complete."
 echo ""
 echo "NOTE: For the agent to run when not logged in, enable lingering on each worker:"
 echo "  sudo loginctl enable-linger ivantha"
+echo ""
+echo "NOTE: For CPU power draw (RAPL) to work, the udev rule must be installed once:"
+echo "  ./deploy/deploy.sh --install-rapl"

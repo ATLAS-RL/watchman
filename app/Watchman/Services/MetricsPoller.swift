@@ -67,12 +67,26 @@ class MetricsPoller: ObservableObject {
             for await (index, metrics) in group {
                 if let metrics {
                     workers[index].update(with: metrics)
+                    ingestPower(metrics)
                 } else {
                     workers[index].markUnreachable()
                 }
             }
             lastPollTime = Date()
         }
+    }
+
+    private func ingestPower(_ m: WorkerMetrics) {
+        let gpuUsage = Double(m.gpu?.usage_percent ?? 0)
+        let sample = PowerSample(
+            timestamp: Date(),
+            hostname: m.hostname,
+            cpuW: m.power?.cpu_w.map { Double($0) } ?? nil,
+            gpuW: m.power?.gpu_w.map { Double($0) } ?? nil,
+            cpuUsagePct: Double(m.cpu.usage_percent),
+            gpuUsagePct: gpuUsage
+        )
+        Task { await PowerStore.shared.ingest(sample) }
     }
 
     deinit {

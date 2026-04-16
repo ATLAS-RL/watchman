@@ -66,6 +66,61 @@ private struct MetricRow: View {
 
 // MARK: - CapacityRow
 
+// MARK: - PowerRow
+
+/// Single-line row showing instantaneous watts with a bar scaled against a
+/// nominal TDP budget. `watts == nil` renders a muted placeholder.
+private struct PowerRow: View {
+    let label: String
+    let watts: Float?
+    let tdpBudget: Double  // watts; bar fills to 100% here
+
+    private var displayPercent: Double {
+        guard let w = watts, tdpBudget > 0 else { return 0 }
+        return min(max(Double(w) / tdpBudget, 0), 1.2) * 100
+    }
+
+    private var barColor: Color {
+        let pct = Int(displayPercent)
+        if pct >= 95 { return Color(red: 0xFF/255.0, green: 0x00/255.0, blue: 0x50/255.0) }
+        if pct >= 75 { return Color(red: 0xFF/255.0, green: 0xE5/255.0, blue: 0x00/255.0) }
+        return Color(red: 0x00/255.0, green: 0xFF/255.0, blue: 0x88/255.0)
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundStyle(Theme.textSecondary)
+                .frame(width: 36, alignment: .leading)
+            if let w = watts {
+                Text(String(format: "%.0f W", w))
+                    .font(.system(size: 11, design: .monospaced))
+                    .monospacedDigit()
+                    .foregroundStyle(barColor)
+                    .frame(width: 48, alignment: .trailing)
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2).fill(Theme.trackGray)
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(barColor)
+                            .frame(width: geo.size.width * CGFloat(min(displayPercent, 100)) / 100.0)
+                    }
+                }
+                .frame(height: 6)
+            } else {
+                Text("—")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(Theme.textSecondary)
+                    .frame(width: 48, alignment: .trailing)
+                Spacer(minLength: 0)
+            }
+        }
+    }
+}
+
+// MARK: - CapacityRow
+
 private struct CapacityRow: View {
     let label: String
     let used: String
@@ -114,18 +169,20 @@ struct WorkerDetailView: View {
             }
 
             if let m = worker.metrics {
-                // CPU block (usage + temp bar, then RAM capacity)
+                // CPU block (usage + temp bar, RAM capacity, power)
                 MetricRow(
                     label: "CPU",
                     percent: Int(m.cpu.usage_percent),
                     temp: m.temps.cpu_temp_c.map { Int($0) }
                 )
                 CapacityRow(label: "RAM", used: m.memory.usedFormatted, total: m.memory.totalFormatted)
+                PowerRow(label: "CPU W", watts: m.power?.cpu_w, tdpBudget: 125)
 
-                // GPU block (usage + temp bar, then VRAM capacity) — if present
+                // GPU block (usage + temp bar, VRAM capacity, power) — if present
                 if let gpu = m.gpu {
                     MetricRow(label: "GPU", percent: Int(gpu.usage_percent), temp: Int(gpu.temp_c))
                     CapacityRow(label: "VRAM", used: gpu.vramUsedFormatted, total: gpu.vramTotalFormatted)
+                    PowerRow(label: "GPU W", watts: m.power?.gpu_w, tdpBudget: 300)
                 } else {
                     HStack(spacing: 6) {
                         Text("GPU")

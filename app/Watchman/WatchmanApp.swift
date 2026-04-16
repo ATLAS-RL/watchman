@@ -19,6 +19,11 @@ struct WatchmanApp: App {
             SettingsView(settings: settings, workers: poller.workers)
                 .preferredColorScheme(.dark)
         }
+
+        Window("Power History", id: "power-history") {
+            PowerHistoryWindow(poller: poller)
+        }
+        .windowResizability(.contentMinSize)
     }
 
     // MARK: - Render colored menu bar label as NSImage

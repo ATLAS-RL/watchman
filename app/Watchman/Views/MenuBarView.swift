@@ -5,6 +5,7 @@ import SwiftUI
 struct MenuBarView: View {
     @ObservedObject var poller: MetricsPoller
     @ObservedObject var settings: AppSettings
+    @Environment(\.openWindow) private var openWindow
 
     private var relativeTimestamp: String {
         guard let t = poller.lastPollTime else { return "Not yet polled" }
@@ -60,6 +61,13 @@ struct MenuBarView: View {
                     .font(.caption2)
                     .foregroundStyle(Theme.textSecondary)
                 Spacer()
+                Button("Power history…") {
+                    openWindow(id: "power-history")
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .foregroundStyle(Theme.textSecondary)
                 Button("Quit") {
                     NSApplication.shared.terminate(nil)
                 }

@@ -9,6 +9,7 @@ struct WorkerMetrics: Codable, Identifiable {
     let memory: MemoryMetrics
     let disk: DiskMetrics
     let temps: TempMetrics
+    let power: PowerMetrics?
     let timestamp: String
 
     struct CpuMetrics: Codable {
@@ -37,6 +38,11 @@ struct WorkerMetrics: Codable, Identifiable {
 
     struct TempMetrics: Codable {
         let cpu_temp_c: Float?
+    }
+
+    struct PowerMetrics: Codable {
+        let cpu_w: Float?
+        let gpu_w: Float?
     }
 }
 
