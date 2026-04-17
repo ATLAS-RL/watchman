@@ -38,11 +38,11 @@ final class HistoryViewModel: ObservableObject {
         isLoading = true
         let host = selectedHost
         let win = window
-        async let p = MetricStore.shared.aggregate(hostname: host, window: win)
-        async let g = MetricStore.shared.gpuAggregate(hostname: host, window: win)
-        async let s = MetricStore.shared.systemAggregate(hostname: host, window: win)
-        async let d = MetricStore.shared.diskAggregate(hostname: host, window: win)
-        async let sum = MetricStore.shared.summary(hostname: host, window: win)
+        async let p = MetricStore.shared.reader.aggregate(hostname: host, window: win)
+        async let g = MetricStore.shared.reader.gpuAggregate(hostname: host, window: win)
+        async let s = MetricStore.shared.reader.systemAggregate(hostname: host, window: win)
+        async let d = MetricStore.shared.reader.diskAggregate(hostname: host, window: win)
+        async let sum = MetricStore.shared.reader.summary(hostname: host, window: win)
         let (pb, gb, sb, db, sm) = await (p, g, s, d, sum)
         powerBuckets = pb
         gpuBuckets = gb

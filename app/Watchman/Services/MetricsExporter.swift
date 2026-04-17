@@ -25,7 +25,7 @@ enum MetricsExporter {
         to: Date,
         destination: URL
     ) async throws -> Int {
-        try await MetricStore.shared.exportRawCsv(
+        try await MetricStore.shared.reader.exportRawCsv(
             workers: workers,
             from: from,
             to: to,

@@ -30,6 +30,7 @@
 		DD31FFA40198BC7B62C53699 /* DisplayTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90271549BB42B61DFD20E9CC /* DisplayTab.swift */; };
 		E0F2E79AD8CF5358B1BEE8E8 /* GpuTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DE780ECC21129346FC5881B /* GpuTab.swift */; };
 		E5CF8DAAF817799639773AA4 /* MetricsExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F01128E2835D2FD43C0DFCFA /* MetricsExporter.swift */; };
+		D411DEAD12345678ABCD0001 /* MetricReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = D411DEAD12345678ABCD0002 /* MetricReader.swift */; };
 		E5D796E8AB85ED7559A89AF7 /* MetricStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0550E6EE23F3144B123CBEE /* MetricStore.swift */; };
 		F2F39E4C9D753706658A9B72 /* MetricsPoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = E394DA01A25C8C15E3E20243 /* MetricsPoller.swift */; };
 		F69F91E3DABBC420F798AEF6 /* SparklineHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACFC65EA9328490E2720A22D /* SparklineHistory.swift */; };
@@ -52,6 +53,7 @@
 		A790A70D3305DA828CDAA0AB /* AlertsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsTab.swift; sourceTree = "<group>"; };
 		ACFC65EA9328490E2720A22D /* SparklineHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparklineHistory.swift; sourceTree = "<group>"; };
 		B0550E6EE23F3144B123CBEE /* MetricStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricStore.swift; sourceTree = "<group>"; };
+		D411DEAD12345678ABCD0002 /* MetricReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricReader.swift; sourceTree = "<group>"; };
 		B77373D726202D9AB861E91A /* Watchman.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Watchman.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B9897D4C9484F9CE61EC85FD /* SystemTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemTab.swift; sourceTree = "<group>"; };
 		D3C47EFC3ABD6BDF75C644A0 /* MetricSample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricSample.swift; sourceTree = "<group>"; };
@@ -121,6 +123,7 @@
 			children = (
 				F7ACE90EA0E6F2554A07924E /* AlertsEngine.swift */,
 				2A56E0AD6FA3E65788BD70F2 /* BonjourBrowser.swift */,
+				D411DEAD12345678ABCD0002 /* MetricReader.swift */,
 				F01128E2835D2FD43C0DFCFA /* MetricsExporter.swift */,
 				E394DA01A25C8C15E3E20243 /* MetricsPoller.swift */,
 				B0550E6EE23F3144B123CBEE /* MetricStore.swift */,
@@ -217,6 +220,7 @@
 				D085AA679718B43E0314711A /* HistoryWindow.swift in Sources */,
 				9A5E62A98856031590034191 /* MenuBarView.swift in Sources */,
 				77681CCEE9D9D14170F41563 /* MetricSample.swift in Sources */,
+				D411DEAD12345678ABCD0001 /* MetricReader.swift in Sources */,
 				E5D796E8AB85ED7559A89AF7 /* MetricStore.swift in Sources */,
 				E5CF8DAAF817799639773AA4 /* MetricsExporter.swift in Sources */,
 				F2F39E4C9D753706658A9B72 /* MetricsPoller.swift in Sources */,
