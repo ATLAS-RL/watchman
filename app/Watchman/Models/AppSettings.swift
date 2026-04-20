@@ -33,6 +33,7 @@ class AppSettings: ObservableObject {
 
     @AppStorage("notificationsEnabled")    var notificationsEnabled:    Bool = true
     @AppStorage("alertUnreachableEnabled") var alertUnreachableEnabled: Bool = true
+    @AppStorage("unreachableMissesTrigger") var unreachableMissesTrigger: Int = 5
 
     @AppStorage("alertGpuTempEnabled") var alertGpuTempEnabled: Bool   = true
     @AppStorage("gpuTempTrigger")      var gpuTempTrigger:      Double = 85

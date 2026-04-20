@@ -17,6 +17,8 @@ struct AlertsTab: View {
             Section("Worker unreachable") {
                 Toggle("Alert when a worker becomes unreachable",
                        isOn: $settings.alertUnreachableEnabled)
+                intField("Trigger after N consecutive missed polls",
+                         value: $settings.unreachableMissesTrigger)
             }
 
             Section("GPU temperature") {
@@ -71,6 +73,15 @@ struct AlertsTab: View {
     }
 
     private func numericField(_ label: String, value: Binding<Double>) -> some View {
+        LabeledContent(label) {
+            TextField("", value: value, format: .number)
+                .textFieldStyle(.roundedBorder)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 80)
+        }
+    }
+
+    private func intField(_ label: String, value: Binding<Int>) -> some View {
         LabeledContent(label) {
             TextField("", value: value, format: .number)
                 .textFieldStyle(.roundedBorder)

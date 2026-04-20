@@ -15,6 +15,10 @@ enum AlertType: String, CaseIterable {
 /// engine re-fires at most one notification per still-bad metric.
 struct LastAlertState {
     var isUnreachable = false
+    /// Consecutive failed polls since the last successful one. Used to gate
+    /// the unreachable alert so a single transient miss (e.g. a brief mDNS
+    /// stall) does not fire a notification. Resets to 0 on any success.
+    var consecutiveUnreachable: Int = 0
     /// Guards against spam on cold-start when a worker is unreachable but
     /// has never been reached this process lifetime.
     var hadEverReachable = false

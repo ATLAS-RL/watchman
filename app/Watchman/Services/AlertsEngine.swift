@@ -46,12 +46,14 @@ final class AlertsEngine: ObservableObject {
         defer { states[workerId] = s }
 
         guard let m = metrics else {
+            s.consecutiveUnreachable += 1
             evaluateUnreachable(state: &s, workerId: workerId, alias: alias, host: host)
             return
         }
 
         s.hadEverReachable = true
         s.isUnreachable = false
+        s.consecutiveUnreachable = 0
 
         evaluateGpuTemp(state: &s, metrics: m, workerId: workerId, alias: alias)
         evaluateVram(state: &s, metrics: m, workerId: workerId, alias: alias)
@@ -66,13 +68,14 @@ final class AlertsEngine: ObservableObject {
     ) {
         guard settings.alertUnreachableEnabled,
               s.hadEverReachable,
-              !s.isUnreachable
+              !s.isUnreachable,
+              s.consecutiveUnreachable >= max(1, settings.unreachableMissesTrigger)
         else { return }
         fire(
             .unreachable,
             workerId: workerId,
             alias: alias,
-            detail: "No response from \(host ?? alias) in the last poll cycle."
+            detail: "No response from \(host ?? alias) for \(s.consecutiveUnreachable) polls."
         )
         s.isUnreachable = true
     }
